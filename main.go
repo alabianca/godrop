@@ -30,19 +30,17 @@ func main() {
 		Qdcount: 1,
 	}
 	dnspkt.AddQuestion(ServiceName, 1, 33)
-	//test answer
-	// d := []byte{0, 0, 0, 0, 219, 84, 3, 49, 50, 55, 1, 48, 1, 48, 1, 49, 0}
-	// dnspkt.AddAnswer("airpaste-global", 1, 33, 5, 17, d)
-	//dnspkt.AddQuestion("_imaps._tcp.gmail.com", 1, 33)
 	packet := dnsPacket.Encode(&dnspkt)
 
-	quitChan := make(chan int)
+	srvQueryChan := make(chan dnsPacket.DNSPacket)
+	srvResponseChan := make(chan dnsPacket.RecordTypeSRV)
+	tcpConnectChan := make(chan dnsPacket.RecordTypeA)
 	buffer := make([]byte, 1024)
 
 	//google, _ := net.ResolveUDPAddr("udp", "8.8.8.8:53")
 	conn, _ := net.DialUDP("udp4", nil, addr)
 
-	go func(quit chan int) {
+	go func(srvQuery chan dnsPacket.DNSPacket, srvResponse chan dnsPacket.RecordTypeSRV, tcpConnect chan dnsPacket.RecordTypeA) {
 		for {
 			_, peer, err := pc.ReadFromUDP(buffer)
 
@@ -53,34 +51,56 @@ func main() {
 			decoded := dnsPacket.Decode(buffer)
 
 			if decoded.Type == "query" {
-				fmt.Printf("Query From: %s \n %s", peer, decoded)
-				hanldeQuery(*peer, *decoded)
-			}
-
-			//fmt.Println(decoded)
-			if len(decoded.Answers) > 0 {
-				record := decoded.Answers[0].Process()
-				t, ok := record.(*dnsPacket.RecordTypeSRV)
+				fmt.Printf("Query From: %s \n", peer)
+				responsePacket, ok := hanldeQuery(*peer, *decoded)
 
 				if ok {
-					fmt.Println(t.Port)
-					fmt.Println(t.Priority)
-					fmt.Println(t.Target)
-					fmt.Println(t.Weight)
+					srvQuery <- *responsePacket
 				}
 
 			}
-			//fmt.Println(decoded)
 
-			quit <- 1
+			if decoded.Type == "response" {
+				fmt.Printf("Response from: %s\n", peer)
+				packetProcessor, t, ok := getPacketProcessor(*peer, *decoded)
+
+				if !ok {
+					return
+				}
+				switch t {
+				case dnsPacket.DNSRecordTypeSRV:
+					srvResponse <- *packetProcessor.(*dnsPacket.RecordTypeSRV)
+				case dnsPacket.DNSRecordTypeA:
+					tcpConnectChan <- *packetProcessor.(*dnsPacket.RecordTypeA)
+				}
+			}
+			//fmt.Println(decoded)
 		}
-	}(quitChan)
+	}(srvQueryChan, srvResponseChan, tcpConnectChan)
 
 	for {
 		select {
-		case q := <-quitChan:
-			fmt.Println(q)
+		case q := <-srvQueryChan:
+			fmt.Println("Responding")
+			//fmt.Println(q)
+			conn.Write(dnsPacket.Encode(&q))
 			//os.Exit(1)
+		case srv := <-srvResponseChan:
+			fmt.Println("Got a response")
+			fmt.Printf("Port: %s", srv.Port)
+			//now send an 'A' record query to get IP
+			query := dnsPacket.DNSPacket{
+				Type:    "query",
+				ID:      1,
+				Opcode:  0,
+				Flags:   dnsPacket.FlagsRecurionDesired,
+				Qdcount: 1,
+			}
+			query.AddQuestion(srv.Target, 1, 1)
+			conn.Write(dnsPacket.Encode(&query))
+		case tcp := <-tcpConnectChan:
+			fmt.Println("this is where I would connect ...")
+			fmt.Println(tcp.IPv4)
 		default:
 			conn.Write(packet)
 			time.Sleep(time.Second * 1)
@@ -90,15 +110,36 @@ func main() {
 
 }
 
-func hanldeQuery(peer net.UDPAddr, packet dnsPacket.DNSPacket) {
+func getPacketProcessor(peer net.UDPAddr, packet dnsPacket.DNSPacket) (dnsPacket.PacketProcessor, int, bool) {
+	//1. figure out what type of response it is
+	if packet.Ancount <= 0 { //no answers to work with
+		return nil, 0, false
+	}
+
+	//just looking at the first answer
+	answer := packet.Answers[0]
+
+	var t int
+	switch answer.Type {
+	case dnsPacket.DNSRecordTypeSRV:
+		t = dnsPacket.DNSRecordTypeSRV
+	case dnsPacket.DNSRecordTypeA:
+		t = dnsPacket.DNSRecordTypeA
+	}
+	packetProcessor := answer.Process()
+
+	return packetProcessor, t, true
+}
+
+func hanldeQuery(peer net.UDPAddr, packet dnsPacket.DNSPacket) (*dnsPacket.DNSPacket, bool) {
 	//1. check if query is from actual peer and not just from me ...
 	me, err := getMyIpv4Addr()
 	if err != nil || peer.IP.Equal(me) {
-		return
+		return nil, false
 	}
 	//no questions... just drop it
 	if packet.Qdcount <= 0 {
-		return
+		return nil, false
 	}
 
 	//2. check what type of query - i only look at the first question
@@ -107,15 +148,36 @@ func hanldeQuery(peer net.UDPAddr, packet dnsPacket.DNSPacket) {
 	switch question.Qtype {
 	case dnsPacket.DNSRecordTypeSRV:
 		//answer SRV query
-		fmt.Println("Handling an SRV Query")
+		if question.Qname != ServiceName {
+			return nil, false
+		}
+
 		data := answerSRVQuery()
 		packet.AddAnswer(ServiceName, 1, 33, 500, len(data), data)
 	case dnsPacket.DNSRecordTypeA:
 		//answer A query
+		if question.Qname != "godrop.local" {
+			return nil, false
+		}
+
 		data := answerAQuery(me)
 		packet.AddAnswer("godrop.local", 1, 1, 500, len(data), data)
 
+	default:
+		data := answerDefaultQuery()
+		packet.AddAnswer("godrop.local", 1, 1, 500, len(data), data)
 	}
+
+	packet.Type = "response"
+	packet.Ancount = uint16(len(packet.Answers))
+
+	return &packet, true
+}
+
+func answerDefaultQuery() []byte {
+	defaultRercord := dnsPacket.RecordTypeDefault{}
+
+	return defaultRercord.Encode()
 }
 
 func answerSRVQuery() []byte {
