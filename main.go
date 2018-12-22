@@ -9,11 +9,9 @@ import (
 	"github.com/alabianca/dnsPacket"
 )
 
-const multicastAddress = "224.0.0.251:5353"
-const serviceName = "_spacedrop._tcp.local"
-
 func main() {
-	addr, _ := net.ResolveUDPAddr("udp", multicastAddress)
+
+	addr, _ := net.ResolveUDPAddr("udp", MulticastAddress)
 	//addr, _ := net.ResolveUDPAddr("udp", ":7777")
 	pc, err := net.ListenMulticastUDP("udp4", nil, addr)
 	//pc, err := net.ListenUDP("udp4", addr)
@@ -32,7 +30,7 @@ func main() {
 		Qdcount: 1,
 		Ancount: 1,
 	}
-	dnspkt.AddQuestion(serviceName, 1, 33)
+	dnspkt.AddQuestion(ServiceName, 1, 33)
 	//test answer
 	// d := []byte{0, 0, 0, 0, 219, 84, 3, 49, 50, 55, 1, 48, 1, 48, 1, 49, 0}
 	// dnspkt.AddAnswer("airpaste-global", 1, 33, 5, 17, d)
@@ -47,11 +45,13 @@ func main() {
 
 	go func(quit chan int) {
 		for {
-			_, _, err := pc.ReadFromUDP(buffer)
+			_, peer, err := pc.ReadFromUDP(buffer)
 
 			if err != nil {
 				os.Exit(1)
 			}
+
+			fmt.Printf("Peer: %s\n", peer)
 
 			decoded := dnsPacket.Decode(buffer)
 			//fmt.Println(decoded)
