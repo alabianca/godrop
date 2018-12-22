@@ -49,9 +49,9 @@ func main() {
 			}
 
 			decoded := dnsPacket.Decode(buffer)
-
+			//fmt.Println(decoded)
 			if decoded.Type == "query" {
-				fmt.Printf("Query From: %s \n", peer)
+				//fmt.Printf("Query From: %s \n", peer)
 				responsePacket, ok := hanldeQuery(*peer, *decoded)
 
 				if ok {
@@ -82,7 +82,7 @@ func main() {
 		select {
 		case q := <-srvQueryChan:
 			fmt.Println("Responding")
-			//fmt.Println(q)
+			fmt.Println(q)
 			conn.Write(dnsPacket.Encode(&q))
 			//os.Exit(1)
 		case srv := <-srvResponseChan:
