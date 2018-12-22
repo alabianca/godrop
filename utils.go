@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net"
 	"strconv"
 	"strings"
@@ -45,10 +44,6 @@ func getMyIpv4Addr() (net.IP, error) {
 			ip := addressStringToIP(a.String())
 
 			if ip.IsLoopback() {
-				fmt.Println("---")
-				fmt.Println(a)
-				fmt.Println(ip)
-				fmt.Printf("Loopback: %s\n", ip)
 				continue
 			}
 
