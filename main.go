@@ -28,7 +28,6 @@ func main() {
 		Opcode:  0,
 		Flags:   dnsPacket.FlagsRecurionDesired,
 		Qdcount: 1,
-		Ancount: 1,
 	}
 	dnspkt.AddQuestion(ServiceName, 1, 33)
 	//test answer
