@@ -27,6 +27,15 @@ func main() {
 
 	defer pc.Close()
 
+	myAddr, _ := getMyIpv4Addr()
+
+	service := Server{
+		IP:   myAddr.String(),
+		Port: "7777",
+	}
+
+	go service.Listen()
+
 	dnspkt := dnsPacket.DNSPacket{
 		Type:    "query",
 		ID:      1,
@@ -108,6 +117,8 @@ func main() {
 			fmt.Printf("this is where I would connect ... %s\n", tcp.IPv4)
 			fmt.Println(tcp.IPv4)
 			other.IP = tcp.IPv4
+			service.Connect(other.IP, other.Port)
+			break
 		case <-scanChan:
 			conn.Write(packet)
 		default:
