@@ -42,5 +42,5 @@ func (s *Server) Connect(ip string, port uint16) {
 
 	fmt.Println("Connecting ...")
 
-	net.Dial("tcp4", ip+addr)
+	net.Dial("tcp4", addr)
 }
