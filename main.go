@@ -141,9 +141,11 @@ func hanldeQuery(peer net.UDPAddr, packet dnsPacket.DNSPacket) (*dnsPacket.DNSPa
 	if packet.Qdcount <= 0 {
 		return nil, false
 	}
-
+	newPacket := dnsPacket.DNSPacket{}
 	//2. check what type of query - i only look at the first question
 	question := packet.Questions[0]
+
+	newPacket.AddQuestion(question.Qname, question.Qclass, question.Qtype)
 
 	switch question.Qtype {
 	case dnsPacket.DNSRecordTypeSRV:
@@ -153,7 +155,7 @@ func hanldeQuery(peer net.UDPAddr, packet dnsPacket.DNSPacket) (*dnsPacket.DNSPa
 		}
 
 		data := answerSRVQuery()
-		packet.AddAnswer(ServiceName, 1, 33, 500, len(data), data)
+		newPacket.AddAnswer(ServiceName, 1, 33, 500, len(data), data)
 	case dnsPacket.DNSRecordTypeA:
 		//answer A query
 		if question.Qname != "godrop.local" {
@@ -161,13 +163,13 @@ func hanldeQuery(peer net.UDPAddr, packet dnsPacket.DNSPacket) (*dnsPacket.DNSPa
 		}
 
 		data := answerAQuery(me)
-		packet.AddAnswer("godrop.local", 1, 1, 500, len(data), data)
+		newPacket.AddAnswer("godrop.local", 1, 1, 500, len(data), data)
 	}
 	fmt.Printf("Handling Query: %d\n", len(packet.Answers))
-	packet.Type = "response"
-	packet.Ancount = uint16(len(packet.Answers))
+	newPacket.Type = "response"
+	newPacket.Ancount = uint16(len(newPacket.Answers))
 
-	return &packet, true
+	return &newPacket, true
 }
 
 func answerDefaultQuery() []byte {
