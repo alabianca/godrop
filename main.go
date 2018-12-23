@@ -171,7 +171,7 @@ func hanldeQuery(peer net.UDPAddr, packet dnsPacket.DNSPacket) (*dnsPacket.DNSPa
 		data := answerAQuery(me)
 		newPacket.AddAnswer("godrop.local", 1, 1, 500, len(data), data)
 	}
-	fmt.Printf("Handling Query: %d\n", len(packet.Answers))
+	fmt.Printf("Handling Query: %d\n", (newPacket.Qdcount))
 	newPacket.Type = "response"
 	newPacket.Ancount = uint16(len(newPacket.Answers))
 
