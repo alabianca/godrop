@@ -50,6 +50,7 @@ func main() {
 
 			decoded := dnsPacket.Decode(buffer)
 			//fmt.Println(decoded)
+			//fmt.Printf("Got a packet: %s", decoded.Type)
 			if decoded.Type == "query" {
 				//fmt.Printf("Query From: %s \n", peer)
 				responsePacket, ok := hanldeQuery(*peer, *decoded)
@@ -81,13 +82,11 @@ func main() {
 	for {
 		select {
 		case q := <-srvQueryChan:
-			fmt.Println("Responding")
-			fmt.Println(q)
 			conn.Write(dnsPacket.Encode(&q))
 			//os.Exit(1)
 		case srv := <-srvResponseChan:
 			fmt.Println("Got a response")
-			fmt.Printf("Port: %s", srv.Port)
+			fmt.Printf("Port: %d", srv.Port)
 			//now send an 'A' record query to get IP
 			query := dnsPacket.DNSPacket{
 				Type:    "query",
@@ -171,7 +170,7 @@ func hanldeQuery(peer net.UDPAddr, packet dnsPacket.DNSPacket) (*dnsPacket.DNSPa
 		data := answerAQuery(me)
 		newPacket.AddAnswer("godrop.local", 1, 1, 500, len(data), data)
 	}
-	fmt.Printf("Handling Query: %d\n", (newPacket.Qdcount))
+
 	newPacket.Type = "response"
 	newPacket.Ancount = uint16(len(newPacket.Answers))
 
