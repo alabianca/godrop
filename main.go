@@ -15,7 +15,7 @@ type Peer struct {
 }
 
 func main() {
-	peer := Peer{}
+	other := Peer{}
 	addr, _ := net.ResolveUDPAddr("udp", MulticastAddress)
 	//addr, _ := net.ResolveUDPAddr("udp", ":7777")
 	pc, err := net.ListenMulticastUDP("udp4", nil, addr)
@@ -91,9 +91,9 @@ func main() {
 			conn.Write(dnsPacket.Encode(&q))
 			//os.Exit(1)
 		case srv := <-srvResponseChan:
-			fmt.Println("Got a response: ", peer)
+			fmt.Println("Got a response: ", srv.Target)
 			fmt.Printf("Port: %d\n", srv.Port)
-			peer.Port = srv.Port
+			other.Port = srv.Port
 			//now send an 'A' record query to get IP
 			query := dnsPacket.DNSPacket{
 				Type:    "query",
@@ -107,7 +107,7 @@ func main() {
 		case tcp := <-tcpConnectChan:
 			fmt.Printf("this is where I would connect ... %s\n", tcp.IPv4)
 			fmt.Println(tcp.IPv4)
-			peer.IP = tcp.IPv4
+			other.IP = tcp.IPv4
 		case <-scanChan:
 			conn.Write(packet)
 		default:
