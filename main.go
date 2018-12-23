@@ -73,7 +73,6 @@ func main() {
 
 				if !ok {
 					scanChan <- 1
-					return
 				}
 				switch t {
 				case dnsPacket.DNSRecordTypeSRV:
