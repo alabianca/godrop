@@ -141,7 +141,13 @@ func hanldeQuery(peer net.UDPAddr, packet dnsPacket.DNSPacket) (*dnsPacket.DNSPa
 	if packet.Qdcount <= 0 {
 		return nil, false
 	}
-	newPacket := dnsPacket.DNSPacket{}
+	newPacket := dnsPacket.DNSPacket{
+		Type:    "response",
+		ID:      packet.ID,
+		Opcode:  packet.Opcode,
+		Flags:   packet.Flags,
+		Qdcount: 1,
+	}
 	//2. check what type of query - i only look at the first question
 	question := packet.Questions[0]
 
