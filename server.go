@@ -40,7 +40,7 @@ func (s *Server) Connect(ip string, port uint16) {
 	p := strconv.Itoa(int(port))
 	addr := ip + ":" + p
 
-	fmt.Println("Connecting ...")
+	fmt.Println("Connecting ... ", addr)
 
 	net.Dial("tcp4", addr)
 }
