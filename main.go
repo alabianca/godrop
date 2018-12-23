@@ -68,7 +68,6 @@ func main() {
 			}
 
 			if decoded.Type == "response" {
-				fmt.Printf("Response from: %s\n", peer)
 				packetProcessor, t, ok := getPacketProcessor(*peer, *decoded)
 
 				if !ok {
@@ -92,8 +91,8 @@ func main() {
 			conn.Write(dnsPacket.Encode(&q))
 			//os.Exit(1)
 		case srv := <-srvResponseChan:
-			fmt.Println("Got a response")
-			fmt.Printf("Port: %d", srv.Port)
+			fmt.Println("Got a response: ", peer)
+			fmt.Printf("Port: %d\n", srv.Port)
 			peer.Port = srv.Port
 			//now send an 'A' record query to get IP
 			query := dnsPacket.DNSPacket{
@@ -106,7 +105,7 @@ func main() {
 			query.AddQuestion(srv.Target, 1, 1)
 			conn.Write(dnsPacket.Encode(&query))
 		case tcp := <-tcpConnectChan:
-			fmt.Println("this is where I would connect ...")
+			fmt.Printf("this is where I would connect ... %s\n", tcp.IPv4)
 			fmt.Println(tcp.IPv4)
 			peer.IP = tcp.IPv4
 		case <-scanChan:
