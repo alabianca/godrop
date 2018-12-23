@@ -9,8 +9,13 @@ import (
 	"github.com/alabianca/dnsPacket"
 )
 
-func main() {
+type Peer struct {
+	Port uint16
+	IP   string
+}
 
+func main() {
+	peer := Peer{}
 	addr, _ := net.ResolveUDPAddr("udp", MulticastAddress)
 	//addr, _ := net.ResolveUDPAddr("udp", ":7777")
 	pc, err := net.ListenMulticastUDP("udp4", nil, addr)
@@ -80,6 +85,7 @@ func main() {
 	}(srvQueryChan, srvResponseChan, tcpConnectChan)
 
 	for {
+
 		select {
 		case q := <-srvQueryChan:
 			conn.Write(dnsPacket.Encode(&q))
@@ -87,6 +93,7 @@ func main() {
 		case srv := <-srvResponseChan:
 			fmt.Println("Got a response")
 			fmt.Printf("Port: %d", srv.Port)
+			peer.Port = srv.Port
 			//now send an 'A' record query to get IP
 			query := dnsPacket.DNSPacket{
 				Type:    "query",
@@ -100,6 +107,7 @@ func main() {
 		case tcp := <-tcpConnectChan:
 			fmt.Println("this is where I would connect ...")
 			fmt.Println(tcp.IPv4)
+			peer.IP = tcp.IPv4
 		default:
 			conn.Write(packet)
 			time.Sleep(time.Second * 1)
@@ -111,6 +119,13 @@ func main() {
 
 func getPacketProcessor(peer net.UDPAddr, packet dnsPacket.DNSPacket) (dnsPacket.PacketProcessor, int, bool) {
 	//1. figure out what type of response it is
+
+	me, err := getMyIpv4Addr()
+
+	if err != nil || peer.IP.Equal(me) {
+		return nil, 0, false
+	}
+
 	if packet.Ancount <= 0 { //no answers to work with
 		return nil, 0, false
 	}
