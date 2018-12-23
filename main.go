@@ -40,12 +40,13 @@ func main() {
 	srvQueryChan := make(chan dnsPacket.DNSPacket)
 	srvResponseChan := make(chan dnsPacket.RecordTypeSRV)
 	tcpConnectChan := make(chan dnsPacket.RecordTypeA)
+	scanChan := make(chan int)
 	buffer := make([]byte, 1024)
 
 	//google, _ := net.ResolveUDPAddr("udp", "8.8.8.8:53")
 	conn, _ := net.DialUDP("udp4", nil, addr)
 
-	go func(srvQuery chan dnsPacket.DNSPacket, srvResponse chan dnsPacket.RecordTypeSRV, tcpConnect chan dnsPacket.RecordTypeA) {
+	go func(srvQuery chan dnsPacket.DNSPacket, srvResponse chan dnsPacket.RecordTypeSRV, tcpConnect chan dnsPacket.RecordTypeA, scan chan int) {
 		for {
 			_, peer, err := pc.ReadFromUDP(buffer)
 
@@ -71,6 +72,7 @@ func main() {
 				packetProcessor, t, ok := getPacketProcessor(*peer, *decoded)
 
 				if !ok {
+					scanChan <- 1
 					return
 				}
 				switch t {
@@ -82,7 +84,7 @@ func main() {
 			}
 			//fmt.Println(decoded)
 		}
-	}(srvQueryChan, srvResponseChan, tcpConnectChan)
+	}(srvQueryChan, srvResponseChan, tcpConnectChan, scanChan)
 
 	for {
 
@@ -108,6 +110,8 @@ func main() {
 			fmt.Println("this is where I would connect ...")
 			fmt.Println(tcp.IPv4)
 			peer.IP = tcp.IPv4
+		case <-scanChan:
+			conn.Write(packet)
 		default:
 			conn.Write(packet)
 			time.Sleep(time.Second * 1)
