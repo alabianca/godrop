@@ -57,9 +57,15 @@ func NewGodrop(conf config) *godrop {
 					queryName = conf.Host
 					queryType = "A"
 					ip, port := getPeerData(packet.Answers[0])
-					drop.peerIP = ip
-					drop.peerPort = port
 
+					if ip != "" {
+						drop.peerIP = ip
+					}
+					if port != 0 {
+						drop.peerPort = port
+					}
+
+					fmt.Println("Ok ", drop)
 				}
 
 				if drop.peerIP != "" && drop.peerPort != 0 {
