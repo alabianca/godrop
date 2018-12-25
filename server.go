@@ -31,7 +31,7 @@ func (s *Server) Listen(connectionHandler func(*net.TCPConn)) {
 			os.Exit(1)
 			return
 		}
-		fmt.Println("someone connected")
+
 		tcpConn, _ := conn.(*net.TCPConn)
 		connectionHandler(tcpConn)
 		return

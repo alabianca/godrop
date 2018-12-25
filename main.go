@@ -29,7 +29,6 @@ func main() {
 	drop.ReadAll()
 
 	drop.Listen(func(conn *net.TCPConn) {
-		fmt.Println("Someone connected")
 
 	})
 

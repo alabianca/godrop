@@ -42,10 +42,33 @@ func (drop *godrop) Connect(ip string, port uint16) (*net.TCPConn, error) {
 	return conn, nil
 }
 
+func (drop *godrop) Write(data []byte) {
+	drop.writer.Write(data)
+}
+
 func (drop *godrop) handleConnection(conn *net.TCPConn) {
 	if len(drop.buf) > 0 {
-
+		conn.Write(drop.buf)
+		return
 	}
+
+	buf := make([]byte, 1024)
+
+	for {
+		n, err := conn.Read(buf)
+
+		if err != nil {
+			if err == io.EOF {
+				buf = append(buf, buf[:n]...)
+				break
+			}
+		}
+
+		buf = append(buf, buf[:n]...)
+	}
+
+	drop.Write(buf)
+
 }
 
 func (drop *godrop) ReadAll() error {
