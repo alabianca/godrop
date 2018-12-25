@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"net"
+	"os"
 	"time"
 
 	"github.com/alabianca/dnsPacket"
@@ -17,14 +20,60 @@ type Peer struct {
 type godrop struct {
 	tcpServer *Server
 	peer      *Peer
+	reader    io.Reader
+	writer    io.Writer
+	conn      *net.TCPConn
+	buf       []byte
 }
 
-func (drop *godrop) Listen(connectionHandler func(*net.Conn)) {
+func (drop *godrop) Listen(connectionHandler func(*net.TCPConn)) {
 	go drop.tcpServer.Listen(connectionHandler)
 }
 
-func (drop *godrop) Connect(ip string, port uint16) {
-	drop.tcpServer.Connect(ip, port)
+func (drop *godrop) Connect(ip string, port uint16) (*net.TCPConn, error) {
+	conn, err := drop.tcpServer.Connect(ip, port)
+
+	if err != nil {
+		return nil, err
+	}
+
+	drop.conn = conn
+
+	return conn, nil
+}
+
+func (drop *godrop) handleConnection(conn *net.TCPConn) {
+	if len(drop.buf) > 0 {
+
+	}
+}
+
+func (drop *godrop) ReadAll() error {
+	buf := make([]byte, 1024)
+
+	info, _ := os.Stdin.Stat()
+
+	//no stdin
+	if info.Size() <= 0 {
+		return nil
+	}
+
+	for {
+		n, err := drop.reader.Read(buf)
+
+		if err != nil {
+			if err == io.EOF {
+				break
+			} else {
+				return err
+			}
+		}
+
+		drop.buf = append(drop.buf, buf[:n]...)
+
+	}
+	fmt.Println(drop.buf)
+	return nil
 }
 
 func NewGodrop(conf config) *godrop {
@@ -35,6 +84,8 @@ func NewGodrop(conf config) *godrop {
 
 	drop := godrop{
 		tcpServer: server,
+		reader:    bufio.NewReader(os.Stdin),
+		writer:    bufio.NewWriter(os.Stdout),
 	}
 
 	return &drop

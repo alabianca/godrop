@@ -26,8 +26,11 @@ func main() {
 	peerChannel := ScanForPeers(conf)
 	drop := NewGodrop(conf)
 
-	drop.Listen(func(conn *net.Conn) {
+	drop.ReadAll()
+
+	drop.Listen(func(conn *net.TCPConn) {
 		fmt.Println("Someone connected")
+
 	})
 
 	for {
