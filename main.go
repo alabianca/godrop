@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"os"
 )
 
@@ -23,12 +24,21 @@ func main() {
 	}
 
 	peerChannel := ScanForPeers(conf)
+	drop := NewGodrop(conf)
+
+	drop.Listen(func(conn *net.Conn) {
+		fmt.Println("Someone connected")
+	})
 
 	for {
 		select {
 		case peer := <-peerChannel:
-			fmt.Println("Stop Query")
-			fmt.Println(peer)
+			drop.peer = &peer
+
+			if conf.IP < drop.peer.IP {
+				fmt.Println("connect")
+				drop.Connect(peer.IP, peer.Port)
+			}
 		}
 	}
 }

@@ -12,7 +12,7 @@ type Server struct {
 	IP   string
 }
 
-func (s *Server) Listen() {
+func (s *Server) Listen(connectionHandler func(*net.Conn)) {
 	address := s.IP + ":" + s.Port
 
 	l, err := net.Listen("tcp4", address)
@@ -23,7 +23,7 @@ func (s *Server) Listen() {
 	}
 
 	for {
-		_, err := l.Accept()
+		conn, err := l.Accept()
 
 		if err != nil {
 			fmt.Println("Error Accepting connection")
@@ -31,7 +31,8 @@ func (s *Server) Listen() {
 			return
 		}
 
-		fmt.Println("Got a connection")
+		connectionHandler(&conn)
+		return
 	}
 
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/alabianca/dnsPacket"
@@ -14,10 +15,30 @@ type Peer struct {
 }
 
 type godrop struct {
-	tcpServer     *Server
-	peerPort      uint16
-	peerIP        string
-	stopQueryChan chan int
+	tcpServer *Server
+	peer      *Peer
+}
+
+func (drop *godrop) Listen(connectionHandler func(*net.Conn)) {
+	go drop.tcpServer.Listen(connectionHandler)
+}
+
+func (drop *godrop) Connect(ip string, port uint16) {
+	drop.tcpServer.Connect(ip, port)
+}
+
+func NewGodrop(conf config) *godrop {
+	server := &Server{
+		Port: conf.Port,
+		IP:   conf.IP,
+	}
+
+	drop := godrop{
+		tcpServer: server,
+	}
+
+	return &drop
+
 }
 
 func ScanForPeers(conf config) chan Peer {
