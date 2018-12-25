@@ -48,6 +48,7 @@ func (drop *godrop) Write(data []byte) {
 
 func (drop *godrop) handleConnection(conn *net.TCPConn) {
 	if len(drop.buf) > 0 {
+		fmt.Println("Writing into connection")
 		conn.Write(drop.buf)
 		return
 	}
@@ -55,8 +56,9 @@ func (drop *godrop) handleConnection(conn *net.TCPConn) {
 	buf := make([]byte, 1024)
 
 	for {
+		fmt.Println("Reading from connection")
 		n, err := conn.Read(buf)
-
+		fmt.Println("Read from connection")
 		if err != nil {
 			if err == io.EOF {
 				buf = append(buf, buf[:n]...)
@@ -201,7 +203,6 @@ func getPeerData(dnsResponse dnsPacket.Answer) (string, uint16) {
 
 func handleResponse(response dnsPacket.DNSPacket, serviceName string, host string) bool {
 	//check if the response is as a result from our query
-	fmt.Println("Handle Response")
 	if response.Ancount <= 0 {
 		return false
 	}
