@@ -29,7 +29,7 @@ func main() {
 	drop.ReadAll()
 
 	drop.Listen(func(conn *net.TCPConn) {
-
+		drop.handleConnection(conn)
 	})
 
 	for {
