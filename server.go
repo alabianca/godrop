@@ -15,14 +15,7 @@ type Server struct {
 func (s *Server) Listen(connectionHandler func(*net.TCPConn)) {
 	address := s.IP + ":" + s.Port
 
-	tcpAddr, tcpErr := net.ResolveTCPAddr("tcp4", address)
-
-	if tcpErr != nil {
-		fmt.Println("Error")
-		os.Exit(1)
-	}
-
-	l, err := net.ListenTCP("tcp4", tcpAddr)
+	l, err := net.Listen("tcp4", address)
 
 	if err != nil {
 		fmt.Println("Could Not listen")
@@ -30,6 +23,7 @@ func (s *Server) Listen(connectionHandler func(*net.TCPConn)) {
 	}
 
 	for {
+		fmt.Println("Listening for connection on at ", s)
 		conn, err := l.Accept()
 
 		if err != nil {
@@ -37,6 +31,7 @@ func (s *Server) Listen(connectionHandler func(*net.TCPConn)) {
 			os.Exit(1)
 			return
 		}
+		fmt.Println("someone connected")
 		tcpConn, _ := conn.(*net.TCPConn)
 		connectionHandler(tcpConn)
 		return
@@ -49,16 +44,12 @@ func (s *Server) Connect(ip string, port uint16) (*net.TCPConn, error) {
 	addr := ip + ":" + p
 
 	fmt.Println("Connecting ... ", addr)
-	tcpAddr, tcpErr := net.ResolveTCPAddr("tcp4", addr)
 
-	if tcpAddr != nil {
-		return nil, tcpErr
-	}
-
-	conn, err := net.DialTCP("tcp4", nil, tcpAddr)
+	conn, err := net.Dial("tcp4", addr)
 	if err != nil {
 		return nil, err
 	}
 
-	return conn, nil
+	tcpConn, _ := conn.(*net.TCPConn)
+	return tcpConn, nil
 }
