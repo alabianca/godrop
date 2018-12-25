@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"net"
 	"os"
@@ -42,16 +41,17 @@ func (drop *godrop) Connect(ip string, port uint16) (*net.TCPConn, error) {
 	return conn, nil
 }
 
-func (drop *godrop) Write(data []byte) {
-	fmt.Println("Going to write ...")
+func (drop *godrop) Write(data []byte, done bool) {
 	drop.writer.Write(data)
-	drop.writer.Flush()
+
+	if done {
+		drop.writer.Flush()
+	}
 
 }
 
 func (drop *godrop) handleConnection(conn *net.TCPConn) {
 	if len(drop.buf) > 0 {
-		fmt.Println("Writing into connection")
 		conn.Write(drop.buf)
 		conn.Close()
 		return
@@ -60,21 +60,16 @@ func (drop *godrop) handleConnection(conn *net.TCPConn) {
 	buf := make([]byte, 1024)
 
 	for {
-		fmt.Println("Reading from connection")
 		n, err := conn.Read(buf)
-		fmt.Println("Read from connection")
 		if err != nil {
 			if err == io.EOF {
-				fmt.Println("EOF")
-				buf = append(buf, buf[:n]...)
+				drop.Write(buf[:n], true)
 				break
 			}
 		}
 
-		buf = append(buf, buf[:n]...)
+		drop.Write(buf[:n], false)
 	}
-
-	drop.Write(buf)
 
 }
 
@@ -102,7 +97,6 @@ func (drop *godrop) ReadAll() error {
 		drop.buf = append(drop.buf, buf[:n]...)
 
 	}
-	fmt.Println(drop.buf)
 	return nil
 }
 
