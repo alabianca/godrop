@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net"
 	"os"
 )
@@ -29,7 +28,6 @@ func main() {
 	drop.ReadAll()
 
 	drop.Listen(func(conn *net.TCPConn) {
-		fmt.Println("handling connection")
 		drop.handleConnection(conn)
 	})
 
@@ -39,7 +37,6 @@ func main() {
 			drop.peer = &peer
 
 			if conf.IP < drop.peer.IP {
-				fmt.Println("connect")
 				conn, _ := drop.Connect(peer.IP, peer.Port)
 				drop.handleConnection(conn)
 			}
