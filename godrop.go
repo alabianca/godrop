@@ -8,6 +8,11 @@ import (
 	"github.com/alabianca/mdns"
 )
 
+type Peer struct {
+	Port uint16
+	IP   string
+}
+
 type godrop struct {
 	tcpServer     *Server
 	peerPort      uint16
@@ -15,17 +20,10 @@ type godrop struct {
 	stopQueryChan chan int
 }
 
-func NewGodrop(conf config) *godrop {
+func ScanForPeers(conf config) chan Peer {
 
-	server := &Server{
-		Port: conf.Port,
-		IP:   conf.IP,
-	}
-
-	drop := godrop{
-		tcpServer:     server,
-		stopQueryChan: make(chan int),
-	}
+	peer := Peer{}
+	quitChan := make(chan Peer)
 
 	mdnsServer, _ := mdns.New()
 
@@ -38,6 +36,9 @@ func NewGodrop(conf config) *godrop {
 	queryType := "SRV"
 
 	go func() {
+		//send a query imediately
+		mdnsServer.Query(queryName, "IN", queryType)
+
 		for {
 			select {
 			case packet := <-mdnsServer.QueryChan:
@@ -59,19 +60,16 @@ func NewGodrop(conf config) *godrop {
 					ip, port := getPeerData(packet.Answers[0])
 
 					if ip != "" {
-						drop.peerIP = ip
+						peer.IP = ip
 					}
 					if port != 0 {
-						drop.peerPort = port
+						peer.Port = port
 					}
-
-					fmt.Println("Ok ", drop)
 				}
 
-				if drop.peerIP != "" && drop.peerPort != 0 {
+				if peer.IP != "" && peer.Port != 0 {
 					timer.Stop()
-					drop.stopQueryChan <- 1
-					return
+					quitChan <- peer
 				}
 
 			case <-timer.C:
@@ -80,7 +78,7 @@ func NewGodrop(conf config) *godrop {
 		}
 	}()
 
-	return &drop
+	return quitChan
 
 }
 
