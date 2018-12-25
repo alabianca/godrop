@@ -43,6 +43,7 @@ func (drop *godrop) Connect(ip string, port uint16) (*net.TCPConn, error) {
 }
 
 func (drop *godrop) Write(data []byte) {
+	fmt.Println("Going to write ...")
 	drop.writer.Write(data)
 }
 
@@ -50,6 +51,7 @@ func (drop *godrop) handleConnection(conn *net.TCPConn) {
 	if len(drop.buf) > 0 {
 		fmt.Println("Writing into connection")
 		conn.Write(drop.buf)
+		conn.Close()
 		return
 	}
 
@@ -61,6 +63,7 @@ func (drop *godrop) handleConnection(conn *net.TCPConn) {
 		fmt.Println("Read from connection")
 		if err != nil {
 			if err == io.EOF {
+				fmt.Println("EOF")
 				buf = append(buf, buf[:n]...)
 				break
 			}
