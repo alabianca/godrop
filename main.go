@@ -29,6 +29,7 @@ func main() {
 	drop.ReadAll()
 
 	drop.Listen(func(conn *net.TCPConn) {
+		fmt.Println("handling connection")
 		drop.handleConnection(conn)
 	})
 
@@ -39,7 +40,8 @@ func main() {
 
 			if conf.IP < drop.peer.IP {
 				fmt.Println("connect")
-				drop.Connect(peer.IP, peer.Port)
+				conn, _ := drop.Connect(peer.IP, peer.Port)
+				drop.handleConnection(conn)
 			}
 		}
 	}
