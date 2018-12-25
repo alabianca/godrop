@@ -20,8 +20,8 @@ type Peer struct {
 type godrop struct {
 	tcpServer *Server
 	peer      *Peer
-	reader    io.Reader
-	writer    io.Writer
+	reader    *bufio.Reader
+	writer    *bufio.Writer
 	conn      *net.TCPConn
 	buf       []byte
 }
@@ -45,6 +45,8 @@ func (drop *godrop) Connect(ip string, port uint16) (*net.TCPConn, error) {
 func (drop *godrop) Write(data []byte) {
 	fmt.Println("Going to write ...")
 	drop.writer.Write(data)
+	drop.writer.Flush()
+
 }
 
 func (drop *godrop) handleConnection(conn *net.TCPConn) {
