@@ -14,8 +14,15 @@ type Peer struct {
 }
 
 type godrop struct {
-	tcpServer *Server
-	peer      *Peer
+	tcpServer     *Server
+	peer          *Peer
+	Port          string
+	IP            string
+	ServiceName   string
+	Host          string
+	ServiceWeight uint16
+	TTL           uint32
+	Priority      uint16
 }
 
 //NewGodrop returns a new godrop server
@@ -26,7 +33,14 @@ func NewGodrop(conf config) *godrop {
 	}
 
 	drop := godrop{
-		tcpServer: server,
+		tcpServer:     server,
+		Port:          conf.Port,
+		IP:            conf.IP,
+		ServiceName:   conf.ServiceName,
+		Host:          conf.Host,
+		ServiceWeight: conf.ServiceWeight,
+		TTL:           conf.TTL,
+		Priority:      conf.Priority,
 	}
 
 	return &drop
@@ -48,7 +62,7 @@ func (drop *godrop) Connect(ip string, port uint16) (*net.TCPConn, error) {
 }
 
 //NewP2PConn returns a new P2PConn either as a result from a peer connecting to me, or as a result of me connecting to another peer
-func (drop *godrop) NewP2PConn(conf config) *P2PConn {
+func (drop *godrop) NewP2PConn() *P2PConn {
 	peer := Peer{}
 	quitChan := make(chan P2PConn)
 
@@ -67,7 +81,7 @@ func (drop *godrop) NewP2PConn(conf config) *P2PConn {
 	timer := time.NewTicker(time.Duration(3) * time.Second)
 
 	//start out by querying for SRV recorcds
-	queryName := conf.ServiceName
+	queryName := drop.ServiceName
 	queryType := "SRV"
 
 	go func() {
@@ -77,7 +91,7 @@ func (drop *godrop) NewP2PConn(conf config) *P2PConn {
 		for {
 			select {
 			case packet := <-mdnsServer.QueryChan:
-				responseData, ok := handleQuery(packet, conf.ServiceName, conf.Host)
+				responseData, ok := handleQuery(packet, drop.ServiceName, drop.Host)
 
 				if ok {
 					name := packet.Questions[0].Qname
@@ -86,11 +100,11 @@ func (drop *godrop) NewP2PConn(conf config) *P2PConn {
 				}
 			case packet := <-mdnsServer.ResponseChan:
 				//is the response one we care about?
-				ok := handleResponse(packet, conf.ServiceName, conf.Host)
+				ok := handleResponse(packet, drop.ServiceName, drop.Host)
 
 				if ok {
 					//at this point we got a successfull srv record from a peer. Switch the query mode to 'A' records
-					queryName = conf.Host
+					queryName = drop.Host
 					queryType = "A"
 					ip, port := getPeerData(packet.Answers[0])
 

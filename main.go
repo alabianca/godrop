@@ -33,15 +33,6 @@ func readStdin() chan []byte {
 	return quitChan
 }
 
-// func writeToPeer(start <-chan []byte, conn *P2PConn) {
-
-// 	go func() {
-// 		data := <-start
-// 		conn.Write(data)
-// 		conn.Close()
-// 	}()
-// }
-
 func readFromPeer(conn *P2PConn) chan []byte {
 	result := make(chan []byte)
 	go func(quit chan []byte) {
@@ -68,17 +59,6 @@ func readFromPeer(conn *P2PConn) chan []byte {
 
 	return result
 }
-
-// func writeToStdout(start <-chan []byte) {
-// 	data := <-start
-
-// 	writer := bufio.NewWriter(os.Stdout)
-
-// 	writer.Write(data)
-// 	writer.Flush()
-
-// 	return
-// }
 
 func pipe(stdinChan, fromPeerChan <-chan []byte, conn *P2PConn) {
 
@@ -126,11 +106,8 @@ func main() {
 	}
 
 	drop := NewGodrop(conf)
-	p2pConn := drop.NewP2PConn(conf)
+	p2pConn := drop.NewP2PConn()
 
 	pipe(readStdin(), readFromPeer(p2pConn), p2pConn)
-
-	// writeToPeer(readStdin(), p2pConn)
-	// writeToStdout(readFromPeer(p2pConn))
 
 }
