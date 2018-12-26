@@ -18,20 +18,7 @@ type godrop struct {
 	peer      *Peer
 }
 
-func (drop *godrop) Listen(connectionHandler func(*net.TCPConn)) {
-	go drop.tcpServer.Listen(connectionHandler)
-}
-
-func (drop *godrop) Connect(ip string, port uint16) (*net.TCPConn, error) {
-	conn, err := drop.tcpServer.Connect(ip, port)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return conn, nil
-}
-
+//NewGodrop returns a new godrop server
 func NewGodrop(conf config) *godrop {
 	server := &Server{
 		Port: conf.Port,
@@ -46,6 +33,21 @@ func NewGodrop(conf config) *godrop {
 
 }
 
+func (drop *godrop) Listen(connectionHandler func(*net.TCPConn)) {
+	go drop.tcpServer.Listen(connectionHandler)
+}
+
+func (drop *godrop) Connect(ip string, port uint16) (*net.TCPConn, error) {
+	conn, err := drop.tcpServer.Connect(ip, port)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return conn, nil
+}
+
+//NewP2PConn returns a new P2PConn either as a result from a peer connecting to me, or as a result of me connecting to another peer
 func (drop *godrop) NewP2PConn(conf config) *P2PConn {
 	peer := Peer{}
 	quitChan := make(chan P2PConn)
