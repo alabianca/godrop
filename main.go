@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"os"
 )
@@ -26,7 +27,7 @@ func readStdin() chan []byte {
 					return
 				}
 			}
-
+			fmt.Println("Appending to result")
 			result = append(result, buf[:n]...)
 		}
 	}(quitChan)
@@ -37,14 +38,16 @@ func readStdin() chan []byte {
 func writeToPeer(start <-chan []byte, conn *P2PConn) {
 
 	go func() {
+		fmt.Println("In write to peer")
 		data := <-start
+		fmt.Println("In write to peer after unlocking channel")
 		conn.Write(data)
 	}()
 }
 
 func readFromPeer(conn *P2PConn) chan []byte {
 	result := make(chan []byte)
-
+	fmt.Println("In read from peer")
 	go func(quit chan []byte) {
 		buf := make([]byte, 1024)
 		data := make([]byte, 0)
@@ -60,7 +63,7 @@ func readFromPeer(conn *P2PConn) chan []byte {
 					return
 				}
 			}
-
+			fmt.Println("reading from peer")
 			data = append(data, buf[:n]...)
 		}
 
