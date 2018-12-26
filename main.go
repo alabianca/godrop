@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"os"
 )
@@ -27,7 +26,6 @@ func readStdin() chan []byte {
 					return
 				}
 			}
-			fmt.Println("Appending to result")
 			result = append(result, buf[:n]...)
 		}
 	}(quitChan)
@@ -38,16 +36,14 @@ func readStdin() chan []byte {
 func writeToPeer(start <-chan []byte, conn *P2PConn) {
 
 	go func() {
-		fmt.Println("In write to peer")
 		data := <-start
-		fmt.Println("In write to peer after unlocking channel")
 		conn.Write(data)
+		conn.Close()
 	}()
 }
 
 func readFromPeer(conn *P2PConn) chan []byte {
 	result := make(chan []byte)
-	fmt.Println("In read from peer")
 	go func(quit chan []byte) {
 		buf := make([]byte, 1024)
 		data := make([]byte, 0)
@@ -61,9 +57,12 @@ func readFromPeer(conn *P2PConn) chan []byte {
 					result <- data
 					close(result)
 					return
+				} else {
+					close(result)
+					return
 				}
 			}
-			fmt.Println("reading from peer")
+
 			data = append(data, buf[:n]...)
 		}
 
@@ -106,24 +105,4 @@ func main() {
 	writeToPeer(readStdin(), p2pConn)
 	writeToStdout(readFromPeer(p2pConn))
 
-	// peerChannel := ScanForPeers(conf)
-	// drop := NewGodrop(conf)
-
-	// drop.ReadAll()
-
-	// drop.Listen(func(conn *net.TCPConn) {
-	// 	drop.handleConnection(conn)
-	// })
-
-	// for {
-	// 	select {
-	// 	case peer := <-peerChannel:
-	// 		drop.peer = &peer
-
-	// 		if conf.IP < drop.peer.IP {
-	// 			conn, _ := drop.Connect(peer.IP, peer.Port)
-	// 			drop.handleConnection(conn)
-	// 		}
-	// 	}
-	// }
 }

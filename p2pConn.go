@@ -1,6 +1,8 @@
 package main
 
-import "net"
+import (
+	"net"
+)
 
 type P2PConn struct {
 	conn *net.TCPConn
@@ -16,4 +18,8 @@ func (c *P2PConn) Write(b []byte) (n int, err error) {
 	n, err = c.conn.Write(b)
 
 	return
+}
+
+func (c *P2PConn) Close() {
+	c.conn.Close()
 }
