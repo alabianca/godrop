@@ -1,9 +1,7 @@
 package main
 
 import (
-	"bufio"
 	"net"
-	"os"
 	"time"
 
 	"github.com/alabianca/dnsPacket"
@@ -18,10 +16,6 @@ type Peer struct {
 type godrop struct {
 	tcpServer *Server
 	peer      *Peer
-	reader    *bufio.Reader
-	writer    *bufio.Writer
-	conn      *net.TCPConn
-	buf       []byte
 }
 
 func (drop *godrop) Listen(connectionHandler func(*net.TCPConn)) {
@@ -35,8 +29,6 @@ func (drop *godrop) Connect(ip string, port uint16) (*net.TCPConn, error) {
 		return nil, err
 	}
 
-	drop.conn = conn
-
 	return conn, nil
 }
 
@@ -48,8 +40,6 @@ func NewGodrop(conf config) *godrop {
 
 	drop := godrop{
 		tcpServer: server,
-		reader:    bufio.NewReader(os.Stdin),
-		writer:    bufio.NewWriter(os.Stdout),
 	}
 
 	return &drop
