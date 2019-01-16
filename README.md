@@ -41,20 +41,20 @@ To establish connections via mDNS follow this pattern:
 ```go
 drop, err := godrop.NewGodrop()
 
-	if err != nil {
-		panic(err)
-	}
+if err != nil {
+    panic(err)
+}
 
-	connStrategy := drop.NewP2PConn("mdns")
+connStrategy := drop.NewP2PConn("mdns")
 
-	p2pConn, err := connStrategy.Connect("") //pass an empty string to connect to the first peer available
+p2pConn, err := connStrategy.Connect("") //pass an empty string to connect to the first peer available
 
-	if err != nil {
-		fmt.Println("Could Not establish P2P Connection")
-		os.Exit(1)
-    }
-    
-    //you now have access to the underlying tcp connection with p2pConn.Conn which is of type net.TCPConn
+if err != nil {
+    fmt.Println("Could Not establish P2P Connection")
+    os.Exit(1)
+}
+
+//you now have access to the underlying tcp connection with p2pConn.Conn which is of type net.TCPConn
 ```
 
 
