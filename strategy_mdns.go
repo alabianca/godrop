@@ -2,6 +2,7 @@ package godrop
 
 import (
 	"net"
+	"strconv"
 	"time"
 
 	"github.com/alabianca/dnsPacket"
@@ -41,6 +42,7 @@ func (m *Mdns) connect(ip string, port uint16) (*net.TCPConn, error) {
 
 func (m Mdns) Connect(peer string) (*P2PConn, error) {
 	p := Peer{}
+
 	quitChan := make(chan P2PConn)
 
 	mdnsServer, _ := mdns.New()
@@ -49,9 +51,8 @@ func (m Mdns) Connect(peer string) (*P2PConn, error) {
 
 	m.listen(func(conn *net.TCPConn) {
 		c := P2PConn{
-			conn: conn,
+			Conn: conn,
 		}
-
 		quitChan <- c
 	})
 
@@ -68,7 +69,7 @@ func (m Mdns) Connect(peer string) (*P2PConn, error) {
 		for {
 			select {
 			case packet := <-mdnsServer.QueryChan:
-				responseData, ok := handleQuery(packet, m.ServiceName, m.Host)
+				responseData, ok := handleQuery(packet, m.ServiceName, m.Host, m.Port)
 
 				if ok {
 					name := packet.Questions[0].Qname
@@ -96,8 +97,9 @@ func (m Mdns) Connect(peer string) (*P2PConn, error) {
 				if p.IP != "" && p.Port != 0 {
 					timer.Stop()
 					conn, _ := m.connect(p.IP, p.Port)
+
 					c := P2PConn{
-						conn: conn,
+						Conn: conn,
 					}
 
 					quitChan <- c
@@ -110,7 +112,6 @@ func (m Mdns) Connect(peer string) (*P2PConn, error) {
 	}()
 
 	p2pConn := <-quitChan
-
 	return &p2pConn, nil
 }
 
@@ -163,7 +164,7 @@ func handleResponse(response dnsPacket.DNSPacket, serviceName string, host strin
 
 }
 
-func handleQuery(query dnsPacket.DNSPacket, serviceName string, host string) ([]byte, bool) {
+func handleQuery(query dnsPacket.DNSPacket, serviceName string, host string, port string) ([]byte, bool) {
 	if query.Qdcount <= 0 {
 		return nil, false
 	}
@@ -191,6 +192,9 @@ func handleQuery(query dnsPacket.DNSPacket, serviceName string, host string) ([]
 		return nil, false
 	}
 
+	p64, _ := strconv.ParseInt(port, 10, 16)
+	p16 := uint16(p64)
+
 	var data []byte
 	switch question.Qtype {
 	case 1:
@@ -202,7 +206,7 @@ func handleQuery(query dnsPacket.DNSPacket, serviceName string, host string) ([]
 	case 33:
 		responseData := dnsPacket.RecordTypeSRV{
 			Target:   host,
-			Port:     7777,
+			Port:     p16,
 			Weight:   0,
 			Priority: 0,
 		}

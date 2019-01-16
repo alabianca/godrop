@@ -39,7 +39,7 @@ func (h TcpHolepunch) Connect(peer string) (*P2PConn, error) {
 	}
 
 	p2pConn := &P2PConn{
-		conn: conn.(*net.TCPConn),
+		Conn: conn.(*net.TCPConn),
 	}
 
 	return p2pConn, nil

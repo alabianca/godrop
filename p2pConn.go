@@ -5,21 +5,21 @@ import (
 )
 
 type P2PConn struct {
-	conn *net.TCPConn
+	Conn *net.TCPConn
 }
 
 func (c *P2PConn) Read(b []byte) (n int, err error) {
-	n, err = c.conn.Read(b)
+	n, err = c.Conn.Read(b)
 
 	return
 }
 
 func (c *P2PConn) Write(b []byte) (n int, err error) {
-	n, err = c.conn.Write(b)
+	n, err = c.Conn.Write(b)
 
 	return
 }
 
 func (c *P2PConn) Close() {
-	c.conn.Close()
+	c.Conn.Close()
 }
