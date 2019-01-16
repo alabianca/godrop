@@ -1,4 +1,4 @@
-package main
+package godrop
 
 import (
 	"net"
@@ -51,6 +51,6 @@ func getMyIpv4Addr() (net.IP, error) {
 
 		}
 	}
-	e := NoIPv4FoundError{}
-	return nil, e
+
+	return nil, NoIPv4FoundError{}
 }

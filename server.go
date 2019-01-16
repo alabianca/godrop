@@ -1,4 +1,4 @@
-package main
+package godrop
 
 import (
 	"net"
@@ -6,13 +6,13 @@ import (
 	"strconv"
 )
 
-type Server struct {
+type server struct {
 	Port string
 	IP   string
 }
 
-func (s *Server) Listen(connectionHandler func(*net.TCPConn)) {
-	address := s.IP + ":" + s.Port
+func (s *server) Listen(connectionHandler func(*net.TCPConn)) {
+	address := net.JoinHostPort(s.IP, s.Port)
 
 	l, err := net.Listen("tcp4", address)
 
@@ -35,7 +35,7 @@ func (s *Server) Listen(connectionHandler func(*net.TCPConn)) {
 
 }
 
-func (s *Server) Connect(ip string, port uint16) (*net.TCPConn, error) {
+func (s *server) Connect(ip string, port uint16) (*net.TCPConn, error) {
 	p := strconv.Itoa(int(port))
 	addr := ip + ":" + p
 

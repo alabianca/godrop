@@ -1,4 +1,4 @@
-package main
+package godrop
 
 import (
 	"net"
