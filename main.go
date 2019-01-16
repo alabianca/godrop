@@ -102,7 +102,7 @@ func main() {
 		Host:          "godrop.local",
 		Priority:      0,
 		ServiceWeight: 0,
-		TTL:           500,
+		TTL:           0,
 	}
 
 	drop := NewGodrop(conf)
