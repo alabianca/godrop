@@ -1,7 +1,8 @@
 ## Godrop
 
 This package enables establishing peer to peer connections via mDNS or TCP punch through.
-`godrop-cli` is a work in progress that currently supports sharing files via mDNS. [Check it out here](https://github.com/alabianca/godrop-cli)
+`godrop-cli` is a work in progress that currently supports sharing files via mDNS. [Check it out here](https://github.com/alabianca/godrop-cli).
+Godrop was lifted out of that package into its own to maybe add it to other applications.
 
 
 ### Usage
