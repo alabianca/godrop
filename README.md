@@ -9,7 +9,7 @@ Create a `godrop` via `godrop.NewGodrop(opt ...Option)` . Godrop follows the Var
 `Option` is of type `func(drop *Godrop)` In this function you have the option to override default configurations. The following properties can be configured:
 
 |Property      |Type  |Description
-|--------------|:----:|--------------------------------------------------------------------------------------------------------------------------------------------------------:|
+|--------------|:----:|:--------------------------------------------------------------------------------------------------------------------------------------------------------|
 |Port          |string| The port the service with be listening on and answering mDNS queries for                                                                                |
 |IP            |string| The IP of the service                                                                                                                                   |
 |ServiceName   |string| The name of the service. Default _godrop._tcp.local                                                                                                     |
