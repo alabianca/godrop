@@ -69,7 +69,6 @@ func NewGodrop(opt ...Option) (*Godrop, error) {
 
 }
 
-//NewP2PConn returns a new P2PConn either as a result from a peer connecting to me, or as a result of me connecting to another peer
 func (drop *Godrop) NewP2PConn(strategy string) ConnectionStrategy {
 	s := strings.ToLower(strategy)
 
