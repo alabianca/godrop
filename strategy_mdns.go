@@ -1,6 +1,7 @@
 package godrop
 
 import (
+	"fmt"
 	"net"
 	"strconv"
 	"time"
@@ -96,8 +97,14 @@ func (m Mdns) Connect(peer string) (*P2PConn, error) {
 
 				if p.IP != "" && p.Port != 0 {
 					timer.Stop()
-					conn, _ := m.connect(p.IP, p.Port)
 
+					conn, err := m.connect(p.IP, p.Port)
+
+					if err != nil {
+						fmt.Println("err: ", err)
+					}
+
+					fmt.Println("connecting: ", p.IP, p.Port)
 					c := P2PConn{
 						Conn: conn,
 					}

@@ -37,14 +37,8 @@ func NewGodrop(opt ...Option) (*Godrop, error) {
 		return nil, err
 	}
 
-	server := &server{
-		Port: "3000",
-		IP:   myIP.String(),
-	}
-
 	//defafults
 	drop := &Godrop{
-		tcpServer:     server,
 		Port:          "3000",
 		IP:            myIP.String(),
 		ServiceName:   "_godrop._tcp.local",
@@ -64,6 +58,14 @@ func NewGodrop(opt ...Option) (*Godrop, error) {
 	for _, option := range opt {
 		option(drop)
 	}
+
+	// set up tcp server
+	server := &server{
+		Port: drop.Port,
+		IP:   myIP.String(),
+	}
+
+	drop.tcpServer = server
 
 	return drop, nil
 
