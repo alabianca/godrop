@@ -1,7 +1,7 @@
 package godrop
 
 import (
-	"strings"
+	"github.com/alabianca/mdns"
 )
 
 type Godrop struct {
@@ -51,7 +51,7 @@ func NewGodrop(opt ...Option) (*Godrop, error) {
 		ListenAddr:    myIP.String(),
 		LocalPort:     "4000",
 		LocalRelayIP:  myIP.String(),
-		UID:           "godrop",
+		UID:           "root",
 	}
 
 	//override defaults
@@ -66,39 +66,62 @@ func NewGodrop(opt ...Option) (*Godrop, error) {
 	}
 
 	drop.tcpServer = server
+	drop.Host = drop.UID + "." + drop.Host // root.godrop.local
 
 	return drop, nil
 
 }
 
-func (drop *Godrop) NewP2PConn(strategy string) ConnectionStrategy {
-	s := strings.ToLower(strategy)
+func (drop *Godrop) NewMDNSService() (*Mdns, error) {
+	mdnsServer, err := mdns.New()
 
-	var connStrategy ConnectionStrategy
-
-	switch s {
-	case StrategyMDNS:
-		connStrategy = Mdns{
-			tcpServer:     drop.tcpServer,
-			Port:          drop.Port,
-			IP:            drop.IP,
-			ServiceName:   drop.ServiceName,
-			Host:          drop.Host,
-			ServiceWeight: drop.ServiceWeight,
-			TTL:           drop.TTL,
-			Priority:      drop.Priority,
-		}
-	case StrategyHP:
-		connStrategy = TcpHolepunch{
-			RelayIP:      drop.RelayIP,
-			RelayPort:    drop.RelayPort,
-			ListenAddr:   drop.ListenAddr,
-			LocalPort:    drop.LocalPort,
-			LocalRelayIP: drop.LocalRelayIP,
-			UID:          drop.UID,
-		}
-
+	if err != nil {
+		return nil, err
 	}
 
-	return connStrategy
+	mdnsService := &Mdns{
+		tcpServer:     drop.tcpServer,
+		mdnsServer:    mdnsServer,
+		Port:          drop.Port,
+		IP:            drop.IP,
+		ServiceName:   drop.ServiceName,
+		Host:          drop.Host,
+		ServiceWeight: drop.ServiceWeight,
+		TTL:           drop.TTL,
+		Priority:      drop.Priority,
+	}
+
+	return mdnsService, nil
 }
+
+// func (drop *Godrop) NewP2PConn(strategy string) ConnectionStrategy {
+// 	s := strings.ToLower(strategy)
+
+// 	var connStrategy ConnectionStrategy
+
+// 	switch s {
+// 	case StrategyMDNS:
+// 		connStrategy = Mdns{
+// 			tcpServer:     drop.tcpServer,
+// 			Port:          drop.Port,
+// 			IP:            drop.IP,
+// 			ServiceName:   drop.ServiceName,
+// 			Host:          drop.Host,
+// 			ServiceWeight: drop.ServiceWeight,
+// 			TTL:           drop.TTL,
+// 			Priority:      drop.Priority,
+// 		}
+// 	case StrategyHP:
+// 		connStrategy = TcpHolepunch{
+// 			RelayIP:      drop.RelayIP,
+// 			RelayPort:    drop.RelayPort,
+// 			ListenAddr:   drop.ListenAddr,
+// 			LocalPort:    drop.LocalPort,
+// 			LocalRelayIP: drop.LocalRelayIP,
+// 			UID:          drop.UID,
+// 		}
+
+// 	}
+
+// 	return connStrategy
+// }

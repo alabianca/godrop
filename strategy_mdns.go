@@ -12,10 +12,12 @@ import (
 type Peer struct {
 	Port uint16
 	IP   string
+	Host string
 }
 
 type Mdns struct {
 	tcpServer     *server
+	mdnsServer    *mdns.Server
 	peer          *Peer
 	Port          string
 	IP            string
@@ -40,14 +42,10 @@ func (m *Mdns) connect(ip string, port uint16) (*net.TCPConn, error) {
 	return conn, nil
 }
 
-func (m Mdns) Connect(peer string) (*P2PConn, error) {
-	p := Peer{}
+// Advertise the godrop service by listening to queries and responding to them
+func (m *Mdns) Advertise() *P2PConn {
 
 	quitChan := make(chan P2PConn)
-
-	mdnsServer, _ := mdns.New()
-
-	mdnsServer.Browse()
 
 	m.listen(func(conn *net.TCPConn) {
 		c := P2PConn{
@@ -55,6 +53,34 @@ func (m Mdns) Connect(peer string) (*P2PConn, error) {
 		}
 		quitChan <- c
 	})
+
+	go func() {
+
+		for {
+			select {
+			case packet := <-m.mdnsServer.QueryChan:
+				responseData, ok := handleQuery(packet, m.ServiceName, m.Host, m.Port)
+
+				if ok {
+					name := packet.Questions[0].Qname
+					anType := packet.Questions[0].Qtype
+					m.mdnsServer.Respond(name, anType, packet, responseData)
+				}
+			case <-m.mdnsServer.ResponseChan:
+				//nothing to do
+			}
+		}
+	}()
+
+	p2pConn := <-quitChan
+	return &p2pConn
+
+}
+
+// Browse for godrop services in the local network by sending a SRV query every 3 seconds
+func (m *Mdns) Browse(onPeerDiscovered func(peer Peer)) {
+
+	m.mdnsServer.Browse()
 
 	timer := time.NewTicker(time.Duration(3) * time.Second)
 
@@ -64,56 +90,31 @@ func (m Mdns) Connect(peer string) (*P2PConn, error) {
 
 	go func() {
 		//send a query imediately
-		mdnsServer.Query(queryName, "IN", queryType)
+		m.mdnsServer.Query(queryName, "IN", queryType)
 
 		for {
 			select {
-			case packet := <-mdnsServer.QueryChan:
-				responseData, ok := handleQuery(packet, m.ServiceName, m.Host, m.Port)
+			case <-m.mdnsServer.QueryChan:
 
-				if ok {
-					name := packet.Questions[0].Qname
-					anType := packet.Questions[0].Qtype
-					mdnsServer.Respond(name, anType, packet, responseData)
-				}
-			case packet := <-mdnsServer.ResponseChan:
+			case packet := <-m.mdnsServer.ResponseChan:
 				//is the response one we care about?
-				ok := handleResponse(packet, m.ServiceName, m.Host)
+				t, ok := handleResponse(packet, m.ServiceName, m.Host)
 
-				if ok {
+				if ok && t == 33 { //only if SRV record
 					//at this point we got a successfull srv record from a peer. Switch the query mode to 'A' records
-					queryName = m.Host
-					queryType = "A"
-					ip, port := getPeerData(packet.Answers[0])
+					answer := packet.Answers[0].Process()
+					srvRecord := answer.(*dnsPacket.RecordTypeSRV)
 
-					if ip != "" {
-						p.IP = ip
-					}
-					if port != 0 {
-						p.Port = port
-					}
-				}
+					peer := Peer{Port: srvRecord.Port, Host: srvRecord.Target}
 
-				if p.IP != "" && p.Port != 0 {
-					timer.Stop()
-
-					conn, _ := m.connect(p.IP, p.Port)
-
-					c := P2PConn{
-						Conn: conn,
-					}
-
-					quitChan <- c
+					onPeerDiscovered(peer)
 				}
 
 			case <-timer.C:
-				mdnsServer.Query(queryName, "IN", queryType)
+				m.mdnsServer.Query(queryName, "IN", queryType)
 			}
 		}
 	}()
-
-	p2pConn := <-quitChan
-	return &p2pConn, nil
 }
 
 func getPeerData(dnsResponse dnsPacket.Answer) (string, uint16) {
@@ -138,10 +139,10 @@ func getPeerData(dnsResponse dnsPacket.Answer) (string, uint16) {
 	return ip, port
 }
 
-func handleResponse(response dnsPacket.DNSPacket, serviceName string, host string) bool {
+func handleResponse(response dnsPacket.DNSPacket, serviceName string, host string) (int, bool) {
 	//check if the response is as a result from our query
 	if response.Ancount <= 0 {
-		return false
+		return 0, false
 	}
 	answer := response.Answers[0]
 
@@ -158,10 +159,10 @@ func handleResponse(response dnsPacket.DNSPacket, serviceName string, host strin
 
 	//if we don't know the name jsut return
 	if name != answer.Name {
-		return false
+		return -1, false
 	}
 
-	return true
+	return answer.Type, true
 
 }
 
