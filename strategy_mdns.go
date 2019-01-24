@@ -47,6 +47,8 @@ func (m *Mdns) Advertise() *P2PConn {
 
 	quitChan := make(chan P2PConn)
 
+	m.mdnsServer.Browse()
+
 	m.listen(func(conn *net.TCPConn) {
 		c := P2PConn{
 			Conn: conn,
@@ -60,7 +62,6 @@ func (m *Mdns) Advertise() *P2PConn {
 			select {
 			case packet := <-m.mdnsServer.QueryChan:
 				responseData, ok := handleQuery(packet, m.ServiceName, m.Host, m.Port)
-
 				if ok {
 					name := packet.Questions[0].Qname
 					anType := packet.Questions[0].Qtype
