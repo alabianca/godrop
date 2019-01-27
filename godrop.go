@@ -14,7 +14,7 @@ type Godrop struct {
 	tcpServer *Server
 	//peer          *Peer
 	Port          int
-	IP            string
+	IP            net.IP
 	ServiceName   string
 	Host          string
 	ServiceWeight uint16
@@ -41,7 +41,7 @@ func NewGodrop(opt ...Option) (*Godrop, error) {
 	//defafults
 	drop := &Godrop{
 		Port:          3000,
-		IP:            myIP.String(),
+		IP:            myIP,
 		ServiceName:   "_godrop._tcp",
 		Host:          "godrop.local",
 		ServiceWeight: 0,
@@ -57,8 +57,9 @@ func NewGodrop(opt ...Option) (*Godrop, error) {
 
 	// set up tcp server
 	server := &Server{
-		Port: drop.Port,
-		IP:   drop.IP,
+		Port:     drop.Port,
+		IP:       drop.IP.String(),
+		shutdown: make(chan struct{}),
 	}
 
 	drop.tcpServer = server
@@ -74,6 +75,7 @@ func (drop *Godrop) NewMDNSService() (*Server, error) {
 	meta := []string{
 		"version=1.0",
 		"name=godrop",
+		"uid=" + drop.UID,
 	}
 	server, err := zeroconf.Register(drop.UID, drop.ServiceName, "local.", drop.Port, meta, nil)
 
@@ -156,21 +158,26 @@ func (drop *Godrop) Lookup(instance string) (*zeroconf.ServiceEntry, error) {
 }
 
 // Connect utilizes godrop.Lookup(instance) to connect to the given instance if found
-func (drop *Godrop) Connect(instance string) error {
+// godrop will attempt to connect to all ip addresses that are advertised and will use the first
+// successfull connection
+func (drop *Godrop) Connect(instance string) (net.Conn, error) {
 	service, err := drop.Lookup(instance)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 	port := strconv.Itoa(service.Port)
 	var found bool
+	var c net.Conn
 	// try all ip addresses to connect to the service
 	// start with ipv4 addresses
 	for i := 0; i < len(service.AddrIPv4); i++ {
 		ip := service.AddrIPv4[i]
-		_, err := net.Dial("tcp4", net.JoinHostPort(ip.String(), port))
+
+		conn, err := net.Dial("tcp4", net.JoinHostPort(ip.String(), port))
 
 		if err == nil {
+			c = conn
 			found = true
 			break
 		}
@@ -180,9 +187,10 @@ func (drop *Godrop) Connect(instance string) error {
 	if !found {
 		for i := 0; i < len(service.AddrIPv6); i++ {
 			ip := service.AddrIPv6[i]
-			_, err := net.Dial("tcp6", net.JoinHostPort(ip.String(), port))
+			conn, err := net.Dial("tcp6", net.JoinHostPort(ip.String(), port))
 
 			if err == nil {
+				c = conn
 				found = true
 				break
 			}
@@ -190,9 +198,9 @@ func (drop *Godrop) Connect(instance string) error {
 	}
 
 	if !found {
-		return fmt.Errorf("Could Not Connect to the service")
+		return nil, fmt.Errorf("Could Not Connect to the service")
 	}
 
-	return nil
+	return c, nil
 
 }
