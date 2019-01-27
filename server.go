@@ -1,18 +1,23 @@
 package godrop
 
 import (
+	"fmt"
 	"net"
 	"os"
 	"strconv"
+
+	"github.com/grandcat/zeroconf"
 )
 
-type server struct {
-	Port string
-	IP   string
+type Server struct {
+	Port        int
+	IP          string
+	mdnsService *zeroconf.Server
 }
 
-func (s *server) Listen(connectionHandler func(*net.TCPConn)) {
-	address := net.JoinHostPort(s.IP, s.Port)
+func (s *Server) listen() {
+	port := strconv.Itoa(s.Port)
+	address := net.JoinHostPort(s.IP, port)
 
 	l, err := net.Listen("tcp4", address)
 
@@ -28,14 +33,15 @@ func (s *server) Listen(connectionHandler func(*net.TCPConn)) {
 			return
 		}
 
-		tcpConn, _ := conn.(*net.TCPConn)
-		connectionHandler(tcpConn)
+		fmt.Println("Got a connection: ", conn.RemoteAddr().String())
+		// tcpConn, _ := conn.(*net.TCPConn)
+		//connectionHandler(tcpConn)
 		return
 	}
 
 }
 
-func (s *server) Connect(ip string, port uint16) (*net.TCPConn, error) {
+func (s *Server) Connect(ip string, port uint16) (*net.TCPConn, error) {
 	p := strconv.Itoa(int(port))
 	addr := ip + ":" + p
 
@@ -46,4 +52,8 @@ func (s *server) Connect(ip string, port uint16) (*net.TCPConn, error) {
 
 	tcpConn, _ := conn.(*net.TCPConn)
 	return tcpConn, nil
+}
+
+func mainLoop(s *Server) {
+	s.listen()
 }

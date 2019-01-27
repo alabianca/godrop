@@ -1,24 +1,25 @@
 package godrop
 
 import (
-	"github.com/alabianca/mdns"
+	"context"
+	"fmt"
+	"net"
+	"strconv"
+	"time"
+
+	"github.com/grandcat/zeroconf"
 )
 
 type Godrop struct {
-	tcpServer     *server
-	peer          *Peer
-	Port          string
+	tcpServer *Server
+	//peer          *Peer
+	Port          int
 	IP            string
 	ServiceName   string
 	Host          string
 	ServiceWeight uint16
 	TTL           uint32
 	Priority      uint16
-	RelayIP       string
-	RelayPort     string
-	ListenAddr    string
-	LocalPort     string
-	LocalRelayIP  string
 	UID           string
 }
 
@@ -29,7 +30,7 @@ const (
 	StrategyHP   = "tcpholepunch"
 )
 
-//NewGodrop returns a new godrop server
+// NewGodrop returns a new godrop server
 func NewGodrop(opt ...Option) (*Godrop, error) {
 	//default IP.
 	myIP, err := getMyIpv4Addr()
@@ -39,18 +40,13 @@ func NewGodrop(opt ...Option) (*Godrop, error) {
 
 	//defafults
 	drop := &Godrop{
-		Port:          "3000",
+		Port:          3000,
 		IP:            myIP.String(),
-		ServiceName:   "_godrop._tcp.local",
+		ServiceName:   "_godrop._tcp",
 		Host:          "godrop.local",
 		ServiceWeight: 0,
 		TTL:           0,
 		Priority:      0,
-		RelayIP:       "127.0.0.1",
-		RelayPort:     "7000",
-		ListenAddr:    myIP.String(),
-		LocalPort:     "4000",
-		LocalRelayIP:  myIP.String(),
 		UID:           "root",
 	}
 
@@ -60,9 +56,9 @@ func NewGodrop(opt ...Option) (*Godrop, error) {
 	}
 
 	// set up tcp server
-	server := &server{
+	server := &Server{
 		Port: drop.Port,
-		IP:   myIP.String(),
+		IP:   drop.IP,
 	}
 
 	drop.tcpServer = server
@@ -72,56 +68,131 @@ func NewGodrop(opt ...Option) (*Godrop, error) {
 
 }
 
-func (drop *Godrop) NewMDNSService() (*Mdns, error) {
-	mdnsServer, err := mdns.New()
+// NewMDNSService registers a new godrop service
+func (drop *Godrop) NewMDNSService() (*Server, error) {
+
+	meta := []string{
+		"version=1.0",
+		"name=godrop",
+	}
+	server, err := zeroconf.Register(drop.UID, drop.ServiceName, "local.", drop.Port, meta, nil)
 
 	if err != nil {
 		return nil, err
 	}
 
-	mdnsService := &Mdns{
-		tcpServer:     drop.tcpServer,
-		mdnsServer:    mdnsServer,
-		Port:          drop.Port,
-		IP:            drop.IP,
-		ServiceName:   drop.ServiceName,
-		Host:          drop.Host,
-		ServiceWeight: drop.ServiceWeight,
-		TTL:           drop.TTL,
-		Priority:      drop.Priority,
-	}
+	drop.tcpServer.mdnsService = server
 
-	return mdnsService, nil
+	go mainLoop(drop.tcpServer)
+
+	return drop.tcpServer, nil
 }
 
-// func (drop *Godrop) NewP2PConn(strategy string) ConnectionStrategy {
-// 	s := strings.ToLower(strategy)
+// Discover browses the local network for _godrop_.tcp instances
+// it will browse for the given timeout
+func (drop *Godrop) Discover(timeout time.Duration) ([]*zeroconf.ServiceEntry, error) {
+	resolver, err := zeroconf.NewResolver(nil)
 
-// 	var connStrategy ConnectionStrategy
+	if err != nil {
+		return nil, err
+	}
 
-// 	switch s {
-// 	case StrategyMDNS:
-// 		connStrategy = Mdns{
-// 			tcpServer:     drop.tcpServer,
-// 			Port:          drop.Port,
-// 			IP:            drop.IP,
-// 			ServiceName:   drop.ServiceName,
-// 			Host:          drop.Host,
-// 			ServiceWeight: drop.ServiceWeight,
-// 			TTL:           drop.TTL,
-// 			Priority:      drop.Priority,
-// 		}
-// 	case StrategyHP:
-// 		connStrategy = TcpHolepunch{
-// 			RelayIP:      drop.RelayIP,
-// 			RelayPort:    drop.RelayPort,
-// 			ListenAddr:   drop.ListenAddr,
-// 			LocalPort:    drop.LocalPort,
-// 			LocalRelayIP: drop.LocalRelayIP,
-// 			UID:          drop.UID,
-// 		}
+	entries := make(chan *zeroconf.ServiceEntry)
+	res := make([]*zeroconf.ServiceEntry, 0)
+	go func(results <-chan *zeroconf.ServiceEntry) {
 
-// 	}
+		for entry := range results {
+			res = append(res, entry)
+		}
 
-// 	return connStrategy
-// }
+	}(entries)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*timeout)
+
+	defer cancel()
+
+	errb := resolver.Browse(ctx, drop.ServiceName, "local.", entries)
+
+	if errb != nil {
+		return nil, fmt.Errorf("Error Browsing")
+	}
+
+	<-ctx.Done()
+
+	return res, nil
+}
+
+// Lookup queries the local network for the given _godrop._tcp instance
+func (drop *Godrop) Lookup(instance string) (*zeroconf.ServiceEntry, error) {
+	resolver, err := zeroconf.NewResolver(nil)
+
+	if err != nil {
+		return nil, err
+	}
+
+	entries := make(chan *zeroconf.ServiceEntry)
+	result := make(chan *zeroconf.ServiceEntry)
+	go func(results chan *zeroconf.ServiceEntry) {
+		entry := <-results
+
+		result <- entry
+
+	}(entries)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	defer cancel()
+
+	errl := resolver.Lookup(ctx, instance, drop.ServiceName, "local.", entries)
+
+	if errl != nil {
+		return nil, errl
+	}
+
+	res := <-result
+
+	return res, nil
+
+}
+
+// Connect utilizes godrop.Lookup(instance) to connect to the given instance if found
+func (drop *Godrop) Connect(instance string) error {
+	service, err := drop.Lookup(instance)
+
+	if err != nil {
+		return err
+	}
+	port := strconv.Itoa(service.Port)
+	var found bool
+	// try all ip addresses to connect to the service
+	// start with ipv4 addresses
+	for i := 0; i < len(service.AddrIPv4); i++ {
+		ip := service.AddrIPv4[i]
+		_, err := net.Dial("tcp4", net.JoinHostPort(ip.String(), port))
+
+		if err == nil {
+			found = true
+			break
+		}
+	}
+
+	// if we still have not connected. try all ipv6 addresses
+	if !found {
+		for i := 0; i < len(service.AddrIPv6); i++ {
+			ip := service.AddrIPv6[i]
+			_, err := net.Dial("tcp6", net.JoinHostPort(ip.String(), port))
+
+			if err == nil {
+				found = true
+				break
+			}
+		}
+	}
+
+	if !found {
+		return fmt.Errorf("Could Not Connect to the service")
+	}
+
+	return nil
+
+}
