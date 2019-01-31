@@ -85,7 +85,7 @@ func (drop *Godrop) NewMDNSService() (*Server, error) {
 
 	drop.tcpServer.mdnsService = server
 
-	go mainLoop(drop.tcpServer)
+	//go mainLoop(drop.tcpServer)
 
 	return drop.tcpServer, nil
 }
