@@ -17,6 +17,7 @@ type Server struct {
 
 func (s *Server) Shutdown() {
 	fmt.Println("Shutting down...")
+	s.mdnsService.Shutdown()
 	close(s.shutdown)
 }
 
