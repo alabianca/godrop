@@ -30,7 +30,3 @@ func (s *Server) Listen() (net.Listener, error) {
 	return l, err
 
 }
-
-func (s *Server) handleConnection(conn *net.Conn) {
-	fmt.Println("Got a connection ", conn)
-}
