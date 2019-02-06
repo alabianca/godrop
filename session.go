@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	HANDSHAKE_LENGTH     = 274
+	HANDSHAKE_LENGTH     = 275
 	HANDSHAKE_ACK_LENGTH = 6
 	HANDSHAKE            = 0x3C
 	HANDSHAKE_SYN_ACK    = 0x3D
@@ -24,26 +24,87 @@ type Session struct {
 	myPublicKey   *rsa.PublicKey
 	myPrivateKey  *rsa.PrivateKey
 	peerPublicKey *rsa.PublicKey
-	IsEncrypted   bool
+	isEncrypted   bool
 }
 
 // NewSession returns a new session instance.
 // If private or public key pairs are nil, session will be unencrypted.
-func NewSession(conn net.Conn, privateKey *rsa.PrivateKey, pubKey *rsa.PublicKey) *Session {
+func NewSession(conn net.Conn, clientFlag bool, privateKey *rsa.PrivateKey, pubKey *rsa.PublicKey) (*Session, error) {
 	sesh := new(Session)
 	sesh.reader = bufio.NewReader(conn)
 	sesh.writer = bufio.NewWriter(conn)
 
 	if privateKey != nil && pubKey != nil {
-		sesh.IsEncrypted = true
+		sesh.isEncrypted = true
 		sesh.myPublicKey = pubKey
 		sesh.myPrivateKey = privateKey
 
 	} else {
-		sesh.IsEncrypted = false
+		sesh.isEncrypted = false
 	}
 
-	return sesh
+	if sesh.isEncrypted {
+		if err := sesh.doHandshake(clientFlag); err != nil {
+			return nil, err
+		}
+
+	}
+
+	return sesh, nil
+}
+
+func (s *Session) doHandshake(clientFlag bool) error {
+	if clientFlag {
+		if err := s.Handshake(); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	if err := s.readHandshake(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Session) readHandshake() error {
+	buf := make([]byte, HANDSHAKE_LENGTH)
+	response := make([]byte, 0)
+	totalRead := 0
+
+	for {
+		n, err := s.reader.Read(buf)
+
+		if err != nil {
+			return err
+		}
+
+		if totalRead < HANDSHAKE_LENGTH {
+			response = append(response, buf[:n]...)
+			totalRead += n
+		}
+
+		if totalRead >= HANDSHAKE_LENGTH {
+			break
+		}
+	}
+
+	msg := new(Message)
+	msg.Decode(response)
+
+	pubKey, err := x509.ParsePKCS1PublicKey(msg.payload)
+
+	if err != nil {
+		return err
+	}
+
+	s.peerPublicKey = pubKey
+
+	if err := s.HandshakeSYNACK(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Handshake initiates the 3-way handshake to exchange public keys with the peer
@@ -51,7 +112,7 @@ func NewSession(conn net.Conn, privateKey *rsa.PrivateKey, pubKey *rsa.PublicKey
 // Handshake will send a Handshake packet to the peer and will block until the peer
 // responds with a Handshake SYN ACK packet. The final packet is a Handshake ACK packet to the peer
 func (s *Session) Handshake() error {
-	if !s.IsEncrypted {
+	if !s.isEncrypted {
 		return fmt.Errorf("No Public/Private Key Pair set")
 	}
 
@@ -121,7 +182,7 @@ func (s *Session) handshakeACK() error {
 // HandshakeSYNACK sends a Handshake syn ack packet to the peer.
 // HandshakeSYNACK returns an error if no public/private key pai is set
 func (s *Session) HandshakeSYNACK() error {
-	if !s.IsEncrypted {
+	if !s.isEncrypted {
 		return fmt.Errorf("No Public/Private Key Pair set")
 	}
 
@@ -159,4 +220,23 @@ func (s *Session) HandshakeSYNACK() error {
 
 	return nil
 
+}
+
+func (s *Session) IsEncrypted() bool {
+	return s.isEncrypted
+}
+
+func (s *Session) Write(p []byte) (n int, err error) {
+	n, err = s.writer.Write(p)
+	return
+}
+
+func (s *Session) Flush() error {
+	return s.writer.Flush()
+}
+
+func (s *Session) Read(buf []byte) (n int, err error) {
+	n, err = s.reader.Read(buf)
+
+	return
 }

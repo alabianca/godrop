@@ -10,6 +10,11 @@ type Header struct {
 	Length uint16
 }
 
+const (
+	HEADER_LENGTH = 4
+)
+
+// 4 bytes
 func (h *Header) Encode() []byte {
 	packet := make([]byte, 0)
 	packet = append(packet, byte(h.Type))
@@ -66,5 +71,5 @@ func (m *Message) Decode(payload []byte) {
 
 	m.header = header
 
-	m.payload = payload[3 : 3+header.Length]
+	m.payload = payload[HEADER_LENGTH : HEADER_LENGTH+header.Length]
 }

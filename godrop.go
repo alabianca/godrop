@@ -2,6 +2,7 @@ package godrop
 
 import (
 	"context"
+	"crypto/rsa"
 	"fmt"
 	"net"
 	"strconv"
@@ -11,8 +12,7 @@ import (
 )
 
 type Godrop struct {
-	tcpServer *Server
-	//peer          *Peer
+	tcpServer     *Server
 	Port          int
 	IP            net.IP
 	ServiceName   string
@@ -21,6 +21,8 @@ type Godrop struct {
 	TTL           uint32
 	Priority      uint16
 	UID           string
+	PubKey        *rsa.PublicKey
+	PrvKey        *rsa.PrivateKey
 }
 
 type Option func(drop *Godrop)
@@ -48,6 +50,8 @@ func NewGodrop(opt ...Option) (*Godrop, error) {
 		TTL:           0,
 		Priority:      0,
 		UID:           "root",
+		PrvKey:        nil,
+		PubKey:        nil,
 	}
 
 	//override defaults
@@ -60,6 +64,8 @@ func NewGodrop(opt ...Option) (*Godrop, error) {
 		Port:     drop.Port,
 		IP:       drop.IP.String(),
 		shutdown: make(chan struct{}),
+		pubKey:   drop.PubKey,
+		prvKey:   drop.PrvKey,
 	}
 
 	drop.tcpServer = server
@@ -85,7 +91,9 @@ func (drop *Godrop) NewMDNSService() (*Server, error) {
 
 	drop.tcpServer.mdnsService = server
 
-	//go mainLoop(drop.tcpServer)
+	if err := drop.tcpServer.listen(); err != nil {
+		return nil, err
+	}
 
 	return drop.tcpServer, nil
 }
@@ -160,7 +168,7 @@ func (drop *Godrop) Lookup(instance string) (*zeroconf.ServiceEntry, error) {
 // Connect utilizes godrop.Lookup(instance) to connect to the given instance if found
 // godrop will attempt to connect to all ip addresses that are advertised and will use the first
 // successfull connection
-func (drop *Godrop) Connect(instance string) (net.Conn, error) {
+func (drop *Godrop) Connect(instance string) (*Session, error) {
 	service, err := drop.Lookup(instance)
 
 	if err != nil {
@@ -201,6 +209,12 @@ func (drop *Godrop) Connect(instance string) (net.Conn, error) {
 		return nil, fmt.Errorf("Could Not Connect to the service")
 	}
 
-	return c, nil
+	sesh, err := NewSession(c, true, drop.PrvKey, drop.PubKey)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return sesh, nil
 
 }
