@@ -1,7 +1,6 @@
 package godrop
 
 import (
-	"crypto/rsa"
 	"fmt"
 	"net"
 	"strconv"
@@ -15,8 +14,6 @@ type Server struct {
 	mdnsService *zeroconf.Server
 	listener    net.Listener
 	shutdown    chan struct{}
-	pubKey      *rsa.PublicKey
-	prvKey      *rsa.PrivateKey
 }
 
 func (s *Server) Shutdown() {
@@ -44,7 +41,7 @@ func (s *Server) Accept() (*Session, error) {
 		return nil, err
 	}
 
-	sesh, err := NewSession(conn, false, s.prvKey, s.pubKey)
+	sesh, err := NewSession(conn, false)
 
 	return sesh, err
 }

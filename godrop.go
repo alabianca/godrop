@@ -2,7 +2,6 @@ package godrop
 
 import (
 	"context"
-	"crypto/rsa"
 	"fmt"
 	"net"
 	"strconv"
@@ -21,8 +20,6 @@ type Godrop struct {
 	TTL           uint32
 	Priority      uint16
 	UID           string
-	PubKey        *rsa.PublicKey
-	PrvKey        *rsa.PrivateKey
 }
 
 type Option func(drop *Godrop)
@@ -50,8 +47,6 @@ func NewGodrop(opt ...Option) (*Godrop, error) {
 		TTL:           0,
 		Priority:      0,
 		UID:           "root",
-		PrvKey:        nil,
-		PubKey:        nil,
 	}
 
 	//override defaults
@@ -64,8 +59,6 @@ func NewGodrop(opt ...Option) (*Godrop, error) {
 		Port:     drop.Port,
 		IP:       drop.IP.String(),
 		shutdown: make(chan struct{}),
-		pubKey:   drop.PubKey,
-		prvKey:   drop.PrvKey,
 	}
 
 	drop.tcpServer = server
@@ -209,7 +202,7 @@ func (drop *Godrop) Connect(instance string) (*Session, error) {
 		return nil, fmt.Errorf("Could Not Connect to the service")
 	}
 
-	sesh, err := NewSession(c, true, drop.PrvKey, drop.PubKey)
+	sesh, err := NewSession(c, true)
 
 	if err != nil {
 		return nil, err
