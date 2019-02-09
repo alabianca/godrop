@@ -1,9 +1,9 @@
 package godrop
 
 import (
-	"crypto/rsa"
 	"fmt"
 	"net"
+	"os"
 	"strconv"
 
 	"github.com/grandcat/zeroconf"
@@ -14,9 +14,8 @@ type Server struct {
 	IP          string
 	mdnsService *zeroconf.Server
 	listener    net.Listener
+	sharePath   string
 	shutdown    chan struct{}
-	pubKey      *rsa.PublicKey
-	prvKey      *rsa.PrivateKey
 }
 
 func (s *Server) Shutdown() {
@@ -37,6 +36,10 @@ func (s *Server) listen() error {
 	return err
 }
 
+func (s *Server) ReadInSharePath() (*os.File, error) {
+	return os.Open(s.sharePath)
+}
+
 func (s *Server) Accept() (*Session, error) {
 	conn, err := s.listener.Accept()
 
@@ -44,7 +47,7 @@ func (s *Server) Accept() (*Session, error) {
 		return nil, err
 	}
 
-	sesh, err := NewSession(conn, false, s.prvKey, s.pubKey)
+	sesh, err := NewSession(conn, false)
 
 	return sesh, err
 }

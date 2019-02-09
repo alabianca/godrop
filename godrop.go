@@ -2,7 +2,6 @@ package godrop
 
 import (
 	"context"
-	"crypto/rsa"
 	"fmt"
 	"net"
 	"strconv"
@@ -21,8 +20,7 @@ type Godrop struct {
 	TTL           uint32
 	Priority      uint16
 	UID           string
-	PubKey        *rsa.PublicKey
-	PrvKey        *rsa.PrivateKey
+	SharePath     string
 }
 
 type Option func(drop *Godrop)
@@ -50,8 +48,7 @@ func NewGodrop(opt ...Option) (*Godrop, error) {
 		TTL:           0,
 		Priority:      0,
 		UID:           "root",
-		PrvKey:        nil,
-		PubKey:        nil,
+		SharePath:     "",
 	}
 
 	//override defaults
@@ -61,11 +58,10 @@ func NewGodrop(opt ...Option) (*Godrop, error) {
 
 	// set up tcp server
 	server := &Server{
-		Port:     drop.Port,
-		IP:       drop.IP.String(),
-		shutdown: make(chan struct{}),
-		pubKey:   drop.PubKey,
-		prvKey:   drop.PrvKey,
+		Port:      drop.Port,
+		IP:        drop.IP.String(),
+		sharePath: drop.SharePath,
+		shutdown:  make(chan struct{}),
 	}
 
 	drop.tcpServer = server
@@ -76,7 +72,7 @@ func NewGodrop(opt ...Option) (*Godrop, error) {
 }
 
 // NewMDNSService registers a new godrop service
-func (drop *Godrop) NewMDNSService() (*Server, error) {
+func (drop *Godrop) NewMDNSService(sharePath string) (*Server, error) {
 
 	meta := []string{
 		"version=1.0",
@@ -90,6 +86,7 @@ func (drop *Godrop) NewMDNSService() (*Server, error) {
 	}
 
 	drop.tcpServer.mdnsService = server
+	drop.tcpServer.sharePath = sharePath // todo: some validation it is a valid path
 
 	if err := drop.tcpServer.listen(); err != nil {
 		return nil, err
@@ -209,7 +206,7 @@ func (drop *Godrop) Connect(instance string) (*Session, error) {
 		return nil, fmt.Errorf("Could Not Connect to the service")
 	}
 
-	sesh, err := NewSession(c, true, drop.PrvKey, drop.PubKey)
+	sesh, err := NewSession(c, true)
 
 	if err != nil {
 		return nil, err
