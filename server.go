@@ -3,6 +3,7 @@ package godrop
 import (
 	"fmt"
 	"net"
+	"os"
 	"strconv"
 
 	"github.com/grandcat/zeroconf"
@@ -13,6 +14,7 @@ type Server struct {
 	IP          string
 	mdnsService *zeroconf.Server
 	listener    net.Listener
+	sharePath   string
 	shutdown    chan struct{}
 }
 
@@ -32,6 +34,10 @@ func (s *Server) listen() error {
 	s.listener = l
 
 	return err
+}
+
+func (s *Server) ReadInSharePath() (*os.File, error) {
+	return os.Open(s.sharePath)
 }
 
 func (s *Server) Accept() (*Session, error) {

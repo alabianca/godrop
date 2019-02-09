@@ -20,6 +20,7 @@ type Godrop struct {
 	TTL           uint32
 	Priority      uint16
 	UID           string
+	SharePath     string
 }
 
 type Option func(drop *Godrop)
@@ -47,6 +48,7 @@ func NewGodrop(opt ...Option) (*Godrop, error) {
 		TTL:           0,
 		Priority:      0,
 		UID:           "root",
+		SharePath:     "",
 	}
 
 	//override defaults
@@ -56,9 +58,10 @@ func NewGodrop(opt ...Option) (*Godrop, error) {
 
 	// set up tcp server
 	server := &Server{
-		Port:     drop.Port,
-		IP:       drop.IP.String(),
-		shutdown: make(chan struct{}),
+		Port:      drop.Port,
+		IP:        drop.IP.String(),
+		sharePath: drop.SharePath,
+		shutdown:  make(chan struct{}),
 	}
 
 	drop.tcpServer = server
@@ -69,7 +72,7 @@ func NewGodrop(opt ...Option) (*Godrop, error) {
 }
 
 // NewMDNSService registers a new godrop service
-func (drop *Godrop) NewMDNSService() (*Server, error) {
+func (drop *Godrop) NewMDNSService(sharePath string) (*Server, error) {
 
 	meta := []string{
 		"version=1.0",
@@ -83,6 +86,7 @@ func (drop *Godrop) NewMDNSService() (*Server, error) {
 	}
 
 	drop.tcpServer.mdnsService = server
+	drop.tcpServer.sharePath = sharePath // todo: some validation it is a valid path
 
 	if err := drop.tcpServer.listen(); err != nil {
 		return nil, err
