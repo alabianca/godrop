@@ -15,6 +15,7 @@ type Server struct {
 	mdnsService *zeroconf.Server
 	listener    net.Listener
 	sharePath   string
+	fInfo       os.FileInfo
 	shutdown    chan struct{}
 }
 
@@ -36,10 +37,6 @@ func (s *Server) listen() error {
 	return err
 }
 
-func (s *Server) ReadInSharePath() (*os.File, error) {
-	return os.Open(s.sharePath)
-}
-
 func (s *Server) Accept() (*Session, error) {
 	conn, err := s.listener.Accept()
 
@@ -48,6 +45,7 @@ func (s *Server) Accept() (*Session, error) {
 	}
 
 	sesh, err := NewSession(conn, false)
+	sesh.fInfo = s.fInfo
 
 	return sesh, err
 }

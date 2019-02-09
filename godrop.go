@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
 	"strconv"
 	"time"
 
@@ -85,8 +86,21 @@ func (drop *Godrop) NewMDNSService(sharePath string) (*Server, error) {
 		return nil, err
 	}
 
+	file, err := os.Open(sharePath)
+
+	if err != nil {
+		return nil, err
+	}
+
+	fileInfo, err := file.Stat()
+
+	if err != nil {
+		return nil, err
+	}
+
 	drop.tcpServer.mdnsService = server
 	drop.tcpServer.sharePath = sharePath // todo: some validation it is a valid path
+	drop.tcpServer.fInfo = fileInfo
 
 	if err := drop.tcpServer.listen(); err != nil {
 		return nil, err

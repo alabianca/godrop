@@ -54,3 +54,17 @@ func getMyIpv4Addr() (net.IP, error) {
 
 	return nil, NoIPv4FoundError{}
 }
+
+func fillString(current string, toLength int) string {
+
+	for {
+		if len(current) < toLength {
+			current = current + "/"
+			continue
+		}
+
+		break
+	}
+
+	return current
+}
