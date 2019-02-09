@@ -45,7 +45,7 @@ func (s *Server) Accept() (*Session, error) {
 	}
 
 	sesh, err := NewSession(conn, false)
-	sesh.fInfo = s.fInfo
+	sesh.Finfo = s.fInfo
 
 	return sesh, err
 }

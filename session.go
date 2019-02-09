@@ -25,7 +25,7 @@ type Session struct {
 	conn          net.Conn
 	reader        *bufio.Reader
 	writer        *bufio.Writer
-	fInfo         os.FileInfo
+	Finfo         os.FileInfo
 	isEncrypted   bool
 	sessionHeader Header
 }
@@ -53,8 +53,8 @@ func (s *Session) Close() {
 // WriteHeader writes the header packet to the peer
 // A  header contains the file size and file name
 func (s *Session) WriteHeader() {
-	bufSize := fillString(strconv.FormatInt(s.fInfo.Size(), 10), 10)
-	bufFName := fillString(s.fInfo.Name(), 64)
+	bufSize := fillString(strconv.FormatInt(s.Finfo.Size(), 10), 10)
+	bufFName := fillString(s.Finfo.Name(), 64)
 
 	s.writer.Write([]byte(bufSize))
 	s.writer.Write([]byte(bufFName))
@@ -63,18 +63,20 @@ func (s *Session) WriteHeader() {
 }
 
 func (s *Session) Write(p []byte) (n int, err error) {
-	return 0, nil
+	return s.writer.Write(p)
 }
 
+// Flush writes any buffered data in the underlying io.Writer
 func (s *Session) Flush() error {
 	return s.writer.Flush()
 }
 
 func (s *Session) Read(buf []byte) (n int, err error) {
-	n, err = s.reader.Read(buf)
-	return
+	return s.reader.Read(buf)
 }
 
+// ReadHeader reads the header packet from the session
+// A header contains the file name and the file size that is being transferred
 func (s *Session) ReadHeader() (Header, error) {
 	contentLength := make([]byte, 10)
 
