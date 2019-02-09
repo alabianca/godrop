@@ -26,11 +26,6 @@ type Godrop struct {
 
 type Option func(drop *Godrop)
 
-const (
-	StrategyMDNS = "mdns"
-	StrategyHP   = "tcpholepunch"
-)
-
 // NewGodrop returns a new godrop server
 func NewGodrop(opt ...Option) (*Godrop, error) {
 	//default IP.
@@ -87,6 +82,8 @@ func (drop *Godrop) NewMDNSService(sharePath string) (*Server, error) {
 	}
 
 	file, err := os.Open(sharePath)
+
+	defer file.Close()
 
 	if err != nil {
 		return nil, err

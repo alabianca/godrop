@@ -42,10 +42,12 @@ func NewSession(conn net.Conn, clientFlag bool) (*Session, error) {
 	return sesh, nil
 }
 
+// IsEncrypted returns true if the underlying tcp connection is encrypted
 func (s *Session) IsEncrypted() bool {
 	return s.isEncrypted
 }
 
+// Close closes the underlying tcp connection
 func (s *Session) Close() {
 	s.conn.Close()
 }
