@@ -3,6 +3,7 @@ package godrop
 import (
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -96,9 +97,15 @@ func transferDir(session *Session, dir string) error {
 			return nil // nothing more to write
 		}
 
-		session.WriteHeader(header)
+		//session.WriteHeader(header)
 		// content is a file. write the file now byte by byte
 		file, err := os.Open(path)
+		inf, err := file.Stat()
+
+		header.Size = inf.Size()
+
+		session.WriteHeader(header)
+
 		defer file.Close()
 
 		if err != nil {
@@ -112,8 +119,11 @@ func transferDir(session *Session, dir string) error {
 
 			if err != nil {
 				if err == io.EOF {
+					session.Write(buf[:n])
+					session.Flush()
 					break
 				} else {
+					log.Println(err)
 					return err
 				}
 			}

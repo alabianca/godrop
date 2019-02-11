@@ -1,6 +1,7 @@
 package godrop
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"os"
@@ -22,6 +23,7 @@ func (c *Clone) CloneDir() {
 		case <-c.readHeader:
 			//read header
 			if err := c.readheader(); err != nil {
+				log.Println("Read Header Error")
 				log.Println(err)
 			}
 		case header := <-c.readContent:
@@ -38,7 +40,7 @@ func (c *Clone) CloneDir() {
 
 func (c *Clone) readheader() error {
 	header, err := c.sesh.ReadHeader()
-
+	//log.Printf("Read Header: %v \n", header)
 	if header.Name != "" {
 		c.readContent <- header
 	}
@@ -51,7 +53,7 @@ func (c *Clone) readheader() error {
 }
 
 func (c *Clone) readcontent(h Header) error {
-
+	//log.Printf("Reading Content %v \n", h)
 	// content is a file
 	if !h.IsDir() {
 		if err := c.readFile(h); err != nil {
@@ -79,15 +81,18 @@ func (c *Clone) readFile(h Header) error {
 	}
 
 	var receivedByts int64
-
+	fmt.Printf("Reading File: %s Size: %d\n", h.Name, h.Size)
 	for {
 		if (h.Size - receivedByts) < BUF_SIZE {
-			io.CopyN(file, c.sesh, (h.Size - receivedByts))
+			n, err := io.CopyN(file, c.sesh, (h.Size - receivedByts))
+			fmt.Println("Written: %d err: %s\n", n, err)
 			break
 		}
 
-		io.CopyN(file, c.sesh, BUF_SIZE)
+		n, err := io.CopyN(file, c.sesh, BUF_SIZE)
+		fmt.Println("Written: %d err: %s\n", n, err)
 		receivedByts += BUF_SIZE
+		fmt.Println("Bytes Read: ", receivedByts)
 	}
 
 	return nil

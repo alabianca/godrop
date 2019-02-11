@@ -2,6 +2,7 @@ package godrop
 
 import (
 	"bufio"
+	"fmt"
 	"net"
 	"os"
 	"strconv"
@@ -55,15 +56,19 @@ func (s *Session) Close() {
 // WriteHeader writes the header packet to the peer
 // A  header contains the file size and file name
 func (s *Session) WriteHeader(h Header) {
+
 	bufSize := fillString(strconv.FormatInt(h.Size, 10), 10)
 	bufFName := fillString(h.Name, 64)
 	pathLength := fillString(strconv.FormatInt(int64(len(h.Path)), 10), 10)
 	path := fillString(h.Path, len(h.Path))
-
+	//fmt.Println(bufSize, bufFName)
 	flags := []byte{byte(h.Flags)}
 
 	s.writer.Write([]byte(bufSize))
-	s.writer.Write([]byte(bufFName))
+	n, _ := s.writer.Write([]byte(bufFName))
+
+	fmt.Printf("written: %d. expected: %d. t: %s\n", n, len(bufFName), bufFName)
+
 	s.writer.Write(flags)
 	s.writer.Write([]byte(pathLength))
 	s.writer.Write([]byte(path))
@@ -87,18 +92,19 @@ func (s *Session) Read(buf []byte) (n int, err error) {
 // ReadHeader reads the header packet from the session
 // A header contains the file name and the file size that is being transferred
 func (s *Session) ReadHeader() (Header, error) {
+
 	contentLength := make([]byte, 10)
 
 	if _, err := s.reader.Read(contentLength); err != nil {
 		return Header{}, err
 	}
-
+	//fmt.Println("CL: ", string(contentLength))
 	contentName := make([]byte, 64)
 
 	if _, err := s.reader.Read(contentName); err != nil {
 		return Header{}, err
 	}
-
+	//fmt.Println("Content: ", string(contentName))
 	fileSize, err := strconv.ParseInt(strings.Trim(string(contentLength), PADDING), 10, 64)
 
 	if err != nil {
@@ -110,7 +116,7 @@ func (s *Session) ReadHeader() (Header, error) {
 	if _, err := s.reader.Read(flags); err != nil {
 		return Header{}, err
 	}
-
+	//fmt.Println("Flags: ", string(flags))
 	flagByte := int(flags[0])
 
 	header := Header{
@@ -130,10 +136,11 @@ func (s *Session) ReadHeader() (Header, error) {
 	if _, err := s.reader.Read(pathLength); err != nil {
 		return Header{}, err
 	}
-
+	//fmt.Println("PathLength: ", string(pathLength))
 	pathSize, err := strconv.ParseInt(strings.Trim(string(pathLength), PADDING), 10, 64)
 
 	if err != nil {
+		//fmt.Println(string(pathLength))
 		return Header{}, err
 	}
 
