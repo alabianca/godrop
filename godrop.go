@@ -99,10 +99,6 @@ func (drop *Godrop) NewMDNSService(sharePath string) (*Server, error) {
 	drop.tcpServer.sharePath = sharePath // todo: some validation it is a valid path
 	drop.tcpServer.fInfo = fileInfo
 
-	if err := drop.tcpServer.listen(); err != nil {
-		return nil, err
-	}
-
 	return drop.tcpServer, nil
 }
 

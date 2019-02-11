@@ -54,12 +54,19 @@ func (s *Session) Close() {
 
 // WriteHeader writes the header packet to the peer
 // A  header contains the file size and file name
-func (s *Session) WriteHeader() {
-	bufSize := fillString(strconv.FormatInt(s.Finfo.Size(), 10), 10)
-	bufFName := fillString(s.Finfo.Name(), 64)
+func (s *Session) WriteHeader(h Header) {
+	bufSize := fillString(strconv.FormatInt(h.Size, 10), 10)
+	bufFName := fillString(h.Name, 64)
+	pathLength := fillString(strconv.FormatInt(int64(len(h.Path)), 10), 10)
+	path := fillString(h.Path, len(h.Path))
+
+	flags := []byte{byte(h.Flags)}
 
 	s.writer.Write([]byte(bufSize))
 	s.writer.Write([]byte(bufFName))
+	s.writer.Write(flags)
+	s.writer.Write([]byte(pathLength))
+	s.writer.Write([]byte(path))
 	s.writer.Flush()
 
 }
@@ -98,13 +105,61 @@ func (s *Session) ReadHeader() (Header, error) {
 		return Header{}, err
 	}
 
+	flags := make([]byte, 1)
+
+	if _, err := s.reader.Read(flags); err != nil {
+		return Header{}, err
+	}
+
+	flagByte := int(flags[0])
+
 	header := Header{
 		Size: fileSize,
 		Name: strings.Trim(string(contentName), PADDING),
 	}
 
+	if (flagByte & isDirMask) > 0 {
+		header.SetDirBit()
+	}
+	if (flagByte & isDoneMask) > 0 {
+		header.SetDoneBit()
+	}
+
+	pathLength := make([]byte, 10)
+
+	if _, err := s.reader.Read(pathLength); err != nil {
+		return Header{}, err
+	}
+
+	pathSize, err := strconv.ParseInt(strings.Trim(string(pathLength), PADDING), 10, 64)
+
+	if err != nil {
+		return Header{}, err
+	}
+
+	path := make([]byte, pathSize)
+
+	if _, err := s.reader.Read(path); err != nil {
+		return Header{}, err
+	}
+
+	header.Path = strings.Trim(string(path), PADDING)
+
 	s.sessionHeader = header
 
 	return header, nil
 
+}
+
+func (s *Session) NewCloner() *Clone {
+	c := &Clone{
+		sesh:             s,
+		readHeader:       make(chan int, 1),
+		readContent:      make(chan Header, 1),
+		transferComplete: make(chan int, 1),
+	}
+
+	c.readHeader <- 1 //immediately start reading the header
+
+	return c
 }
