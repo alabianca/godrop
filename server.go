@@ -61,26 +61,18 @@ func (s *Server) accept(l net.Listener) (*Session, error) {
 	}
 
 	sesh, err := NewSession(conn, false)
-	sesh.Finfo = s.fInfo
 
 	return sesh, err
 }
 
 func (s *Server) handleConnection(session *Session) {
-	transferDir(session, s.sharePath)
-
-	// write one last packet signaling the end of the transfer before closing the connection
-	session.WriteHeader(Header{
-		Name:  "",
-		Size:  0,
-		Path:  "",
-		Flags: isDoneMask,
-	})
-
-	session.Close()
+	if err := transferDir(session, s.sharePath); err != nil {
+		fmt.Println(err)
+	}
 }
 
 func transferDir(session *Session, dir string) error {
 
-	return WriteTarball(session.writer, dir)
+	return session.TransferContent(dir)
+	//return WriteTarball(session.writer, dir)
 }
