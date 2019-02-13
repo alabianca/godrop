@@ -2,7 +2,7 @@ package godrop
 
 import (
 	"bufio"
-	"fmt"
+	"io"
 	"net"
 	"os"
 	"strconv"
@@ -65,14 +65,18 @@ func (s *Session) WriteHeader(h Header) {
 	flags := []byte{byte(h.Flags)}
 
 	s.writer.Write([]byte(bufSize))
-	n, _ := s.writer.Write([]byte(bufFName))
-
-	fmt.Printf("written: %d. expected: %d. t: %s\n", n, len(bufFName), bufFName)
-
+	s.writer.Write([]byte(bufFName))
 	s.writer.Write(flags)
 	s.writer.Write([]byte(pathLength))
 	s.writer.Write([]byte(path))
 	s.writer.Flush()
+
+	// fmt.Printf("S: %d %d\n", m, len(bufSize))
+	// fmt.Printf("N: %d %d\n", n, len(bufFName))
+	// fmt.Printf("F: %d %d\n", x, len(flags))
+	// fmt.Printf("L: %d %d\n", y, len(pathLength))
+	// fmt.Printf("P: %d %d\n", z, len(path))
+	// fmt.Println("----------------------")
 
 }
 
@@ -89,19 +93,42 @@ func (s *Session) Read(buf []byte) (n int, err error) {
 	return s.reader.Read(buf)
 }
 
+func (s *Session) ClearNetBuffer(readAmount int64) (n int, err error) {
+
+	buf := make([]byte, readAmount)
+	return io.ReadFull(s, buf)
+	// var recv int64
+	// total := readAmount
+	// for {
+	// 	buf := make([]byte, readAmount)
+	// 	n, _ := s.Read(buf)
+	// 	recv += int64(n)
+
+	// 	if recv < total {
+	// 		readAmount = total - recv
+	// 	}
+
+	// 	if recv >= total {
+	// 		break
+	// 	}
+	// }
+
+	// return (recv)
+}
+
 // ReadHeader reads the header packet from the session
 // A header contains the file name and the file size that is being transferred
 func (s *Session) ReadHeader() (Header, error) {
 
 	contentLength := make([]byte, 10)
 
-	if _, err := s.reader.Read(contentLength); err != nil {
+	if _, err := io.ReadFull(s, contentLength); err != nil {
 		return Header{}, err
 	}
 	//fmt.Println("CL: ", string(contentLength))
 	contentName := make([]byte, 64)
 
-	if _, err := s.reader.Read(contentName); err != nil {
+	if _, err := io.ReadFull(s, contentName); err != nil {
 		return Header{}, err
 	}
 	//fmt.Println("Content: ", string(contentName))
@@ -113,7 +140,7 @@ func (s *Session) ReadHeader() (Header, error) {
 
 	flags := make([]byte, 1)
 
-	if _, err := s.reader.Read(flags); err != nil {
+	if _, err := io.ReadFull(s, flags); err != nil {
 		return Header{}, err
 	}
 	//fmt.Println("Flags: ", string(flags))
@@ -133,7 +160,7 @@ func (s *Session) ReadHeader() (Header, error) {
 
 	pathLength := make([]byte, 10)
 
-	if _, err := s.reader.Read(pathLength); err != nil {
+	if _, err := io.ReadFull(s, pathLength); err != nil {
 		return Header{}, err
 	}
 	//fmt.Println("PathLength: ", string(pathLength))
@@ -146,7 +173,7 @@ func (s *Session) ReadHeader() (Header, error) {
 
 	path := make([]byte, pathSize)
 
-	if _, err := s.reader.Read(path); err != nil {
+	if _, err := io.ReadFull(s, path); err != nil {
 		return Header{}, err
 	}
 
