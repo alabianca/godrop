@@ -26,6 +26,7 @@ type Session struct {
 	conn            net.Conn
 	reader          *bufio.Reader
 	writer          *bufio.Writer
+	DebugWriter     io.Writer
 	LocalHost       string
 	RemoteHost      string
 	RemoteService   string
@@ -151,6 +152,11 @@ func (s *Session) CloneDir(dir string) error {
 
 	if err != nil {
 		return err
+	}
+
+	if s.DebugWriter != nil {
+		tr := io.TeeReader(gzr, s.DebugWriter)
+		return ReadTarball(tr, dir)
 	}
 
 	return ReadTarball(gzr, dir)

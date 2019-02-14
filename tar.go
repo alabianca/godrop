@@ -54,6 +54,7 @@ func WriteTarball(writer io.Writer, dir string) error {
 
 // ReadTarball reads from reader and creates the resulting directory at target
 func ReadTarball(reader io.Reader, target string) error {
+
 	tr := tar.NewReader(reader)
 
 	for {
