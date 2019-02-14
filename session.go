@@ -3,27 +3,36 @@ package godrop
 import (
 	"bufio"
 	"compress/gzip"
+	"fmt"
+	"io"
 	"net"
+	"strconv"
+	"strings"
 )
 
 const (
-	HANDSHAKE_LENGTH     = 275
-	HANDSHAKE_ACK_LENGTH = 6
-	HANDSHAKE            = 0x3C
-	HANDSHAKE_SYN_ACK    = 0x3D
-	HANDSHAKE_ACK        = 0x3E
-	END_OF_TEXT          = 0x3
-	MESSAGE              = 0x3F
+	AUTH_PACKET          = 60
+	CLONE_PACKET         = 61
+	CLONE_PACKET_ACK     = 62
+	CLONE_PACKET_NAK     = 63
+	AUTH_PACKET_LENGTH   = 65
+	CLONE_ACKNACK_LENGTH = 65
 	BUF_SIZE             = 1024
 	PADDING              = "/"
 )
 
 // Session represents the connection between 2 peers
 type Session struct {
-	conn        net.Conn
-	reader      *bufio.Reader
-	writer      *bufio.Writer
-	isEncrypted bool
+	conn            net.Conn
+	reader          *bufio.Reader
+	writer          *bufio.Writer
+	LocalHost       string
+	RemoteHost      string
+	RemoteService   string
+	RemotePort      int
+	RemoteIP        string
+	isAuthenticated bool
+	isEncrypted     bool
 }
 
 // NewSession returns a new session instance.
@@ -34,6 +43,8 @@ func NewSession(conn net.Conn, clientFlag bool) (*Session, error) {
 	sesh.reader = bufio.NewReader(conn)
 	sesh.writer = bufio.NewWriter(conn)
 	sesh.isEncrypted = false
+	sesh.RemoteIP = conn.RemoteAddr().String()
+	sesh.isAuthenticated = false
 
 	return sesh, nil
 }
@@ -46,6 +57,53 @@ func (s *Session) IsEncrypted() bool {
 // Close closes the underlying tcp connection
 func (s *Session) Close() {
 	s.conn.Close()
+}
+
+// Authenticate sends an AUTH_PACKET to the remote peer
+//
+// [1-Byte AUTH_PACKET][64 BYTES LOCAL HOST NAME]
+func (s *Session) Authenticate() (Header, error) {
+	authType := []byte{AUTH_PACKET}
+	host := fillString(s.LocalHost, 64)
+
+	s.writer.Write(authType)
+	s.writer.Write([]byte(host))
+	s.writer.Flush()
+
+	response := make([]byte, 74)
+
+	if _, err := io.ReadFull(s.reader, response); err != nil {
+		return Header{}, err
+	}
+
+	size := response[:10]
+	name := response[10:]
+	contentLength, err := strconv.ParseInt(strings.Trim(string(size), PADDING), 10, 64)
+
+	if err != nil {
+		return Header{}, err
+	}
+
+	contentName := strings.Trim(string(name), PADDING)
+
+	header := Header{
+		Size: contentLength,
+		Name: contentName,
+	}
+
+	return header, nil
+}
+
+// SendHeader sends a header packet to the remote peer
+//
+// [10-byte content-length][64-byte content name]
+func (s *Session) SendHeader(name string, size int64) {
+	contentLength := fillString(strconv.FormatInt(size, 10), 10)
+	contentName := fillString(name, 64)
+
+	s.writer.Write([]byte(contentLength))
+	s.writer.Write([]byte(contentName))
+	s.writer.Flush()
 }
 
 // TransferContent writes the contents of dir into a gzip writer.
@@ -70,6 +128,24 @@ func (s *Session) TransferContent(dir string) error {
 //
 // tarReader <--- gzipReader <--- bufioReader <--- net.Conn
 func (s *Session) CloneDir(dir string) error {
+	// first send a packet to the peer indicating that we want to clone the content
+	clonePacket := []byte{CLONE_PACKET}
+	padding := fillString(PADDING, 64)
+	s.writer.Write(clonePacket)
+	s.writer.Write([]byte(padding))
+	s.writer.Flush()
+
+	// wait for the ack or nak
+	response := make([]byte, CLONE_ACKNACK_LENGTH)
+	if _, err := io.ReadFull(s.reader, response); err != nil {
+		return err
+	}
+
+	// ACCESS-DENIED
+	if response[0] == CLONE_PACKET_NAK {
+		reason := response[1:]
+		return fmt.Errorf(strings.Trim(string(reason), PADDING))
+	}
 
 	gzr, err := gzip.NewReader(s.reader)
 

@@ -214,6 +214,9 @@ func (drop *Godrop) Connect(instance string) (*Session, error) {
 	}
 
 	sesh, err := NewSession(c, true)
+	sesh.RemoteHost = service.HostName
+	sesh.RemoteService = service.ServiceInstanceName()
+	sesh.LocalHost = drop.Host
 
 	if err != nil {
 		return nil, err
