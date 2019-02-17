@@ -2,26 +2,33 @@ package godrop
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/grandcat/zeroconf"
 )
 
 type Godrop struct {
-	tcpServer     *Server
-	Port          int
-	IP            net.IP
-	ServiceName   string
-	Host          string
-	ServiceWeight uint16
-	TTL           uint32
-	Priority      uint16
-	UID           string
-	SharePath     string
+	tcpServer        *Server
+	Port             int
+	IP               net.IP
+	ServiceName      string
+	Host             string
+	ServiceWeight    uint16
+	TTL              uint32
+	Priority         uint16
+	UID              string
+	SharePath        string
+	RootCaCert       []byte
+	GodropCert       []byte
+	GodropPrivateKey []byte
+	tlsConfig        *tls.Config
 }
 
 type Option func(drop *Godrop)
@@ -52,12 +59,33 @@ func NewGodrop(opt ...Option) (*Godrop, error) {
 		option(drop)
 	}
 
+	// if tls is desired set up the root certificate as a trusted cert
+	if len(drop.RootCaCert) > 0 {
+		// assume tls is desired
+		drop.tlsConfig = new(tls.Config)
+		tlsRoots := x509.NewCertPool()
+		if ok := tlsRoots.AppendCertsFromPEM(drop.RootCaCert); !ok {
+			return nil, fmt.Errorf("Could Not Parse Provided Root Certificate")
+		}
+
+		drop.tlsConfig.RootCAs = tlsRoots
+	}
+
 	// set up tcp server
 	server := &Server{
 		Port:      drop.Port,
 		IP:        drop.IP.String(),
 		sharePath: drop.SharePath,
 		shutdown:  make(chan struct{}),
+	}
+
+	if len(drop.GodropCert) > 0 && len(drop.GodropPrivateKey) > 0 {
+		// add server (godropCert) certificate and private key to the server
+		if cer, err := tls.X509KeyPair(drop.GodropCert, drop.GodropPrivateKey); err != nil {
+			return nil, err
+		} else {
+			server.tlsConfig = &tls.Config{Certificates: []tls.Certificate{cer}}
+		}
 	}
 
 	drop.tcpServer = server
@@ -74,6 +102,7 @@ func (drop *Godrop) NewMDNSService(sharePath string) (*Server, error) {
 		"version=1.0",
 		"name=godrop",
 		"uid=" + drop.UID,
+		"droplet=" + drop.Host,
 	}
 	server, err := zeroconf.Register(drop.UID, drop.ServiceName, "local.", drop.Port, meta, nil)
 
@@ -175,6 +204,10 @@ func (drop *Godrop) Lookup(instance string) (*zeroconf.ServiceEntry, error) {
 func (drop *Godrop) Connect(instance string) (*Session, error) {
 	service, err := drop.Lookup(instance)
 
+	if drop.tlsConfig != nil {
+		drop.tlsConfig.ServerName = strings.Split(service.Text[3], "=")[1] // the drop.Host property of the remote godrop
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +219,7 @@ func (drop *Godrop) Connect(instance string) (*Session, error) {
 	for i := 0; i < len(service.AddrIPv4); i++ {
 		ip := service.AddrIPv4[i]
 
-		conn, err := net.Dial("tcp4", net.JoinHostPort(ip.String(), port))
+		conn, err := drop.connect("tcp4", net.JoinHostPort(ip.String(), port))
 
 		if err == nil {
 			c = conn
@@ -199,7 +232,7 @@ func (drop *Godrop) Connect(instance string) (*Session, error) {
 	if !found {
 		for i := 0; i < len(service.AddrIPv6); i++ {
 			ip := service.AddrIPv6[i]
-			conn, err := net.Dial("tcp6", net.JoinHostPort(ip.String(), port))
+			conn, err := drop.connect("tcp6", net.JoinHostPort(ip.String(), port))
 
 			if err == nil {
 				c = conn
@@ -213,10 +246,16 @@ func (drop *Godrop) Connect(instance string) (*Session, error) {
 		return nil, fmt.Errorf("Could Not Connect to the service")
 	}
 
-	sesh, err := NewSession(c, true)
+	var encryptionStatus = false
+	if drop.tlsConfig != nil {
+		encryptionStatus = true
+	}
+
+	sesh, err := NewSession(c, true, encryptionStatus)
 	sesh.RemoteHost = service.HostName
 	sesh.RemoteService = service.ServiceInstanceName()
 	sesh.LocalHost = drop.Host
+	sesh.RemoteDroplet = strings.Split(service.Text[3], "=")[1]
 
 	if err != nil {
 		return nil, err
@@ -224,4 +263,15 @@ func (drop *Godrop) Connect(instance string) (*Session, error) {
 
 	return sesh, nil
 
+}
+
+// Establish the underlying tcp connection. If the drop instance's tls config is non nil connect
+// attempts to establish a tls connection
+func (drop *Godrop) connect(dialType, joinedHostPort string) (net.Conn, error) {
+	if drop.tlsConfig == nil {
+		return net.Dial(dialType, joinedHostPort)
+	}
+
+	//Attempt to establish a TLS connection
+	return tls.Dial(dialType, joinedHostPort, drop.tlsConfig)
 }

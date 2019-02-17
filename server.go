@@ -1,6 +1,7 @@
 package godrop
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io"
 	"net"
@@ -15,6 +16,7 @@ type Server struct {
 	Port        int
 	IP          string
 	mdnsService *zeroconf.Server
+	tlsConfig   *tls.Config
 	sharePath   string
 	fInfo       os.FileInfo
 	shutdown    chan struct{}
@@ -30,6 +32,7 @@ func (s *Server) Start() {
 	listener, err := s.listen()
 
 	if err != nil {
+		fmt.Println(err)
 		s.Shutdown()
 		return
 	}
@@ -49,8 +52,14 @@ func (s *Server) listen() (net.Listener, error) {
 	port := strconv.Itoa(s.Port)
 	address := net.JoinHostPort(s.IP, port)
 
-	// todo handle a listen error properly
-	l, err := net.Listen("tcp4", address)
+	// no tls desired.
+	var l net.Listener
+	var err error
+	if s.tlsConfig == nil {
+		l, err = net.Listen("tcp4", address)
+	} else {
+		l, err = tls.Listen("tcp4", address, s.tlsConfig)
+	}
 
 	return l, err
 }
@@ -62,7 +71,12 @@ func (s *Server) accept(l net.Listener) (*Session, error) {
 		return nil, err
 	}
 
-	sesh, err := NewSession(conn, false)
+	var encryptionStatus = false
+	if s.tlsConfig != nil {
+		encryptionStatus = true
+	}
+
+	sesh, err := NewSession(conn, false, encryptionStatus)
 
 	return sesh, err
 }

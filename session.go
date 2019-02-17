@@ -32,18 +32,19 @@ type Session struct {
 	RemoteService   string
 	RemotePort      int
 	RemoteIP        string
+	RemoteDroplet   string
 	isAuthenticated bool
 	isEncrypted     bool
 }
 
 // NewSession returns a new session instance.
 // If private or public key pairs are nil, session will be unencrypted.
-func NewSession(conn net.Conn, clientFlag bool) (*Session, error) {
+func NewSession(conn net.Conn, clientFlag, isEncrypted bool) (*Session, error) {
 	sesh := new(Session)
 	sesh.conn = conn
 	sesh.reader = bufio.NewReader(conn)
 	sesh.writer = bufio.NewWriter(conn)
-	sesh.isEncrypted = false
+	sesh.isEncrypted = isEncrypted
 	sesh.RemoteIP = conn.RemoteAddr().String()
 	sesh.isAuthenticated = false
 
