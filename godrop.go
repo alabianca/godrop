@@ -206,6 +206,7 @@ func (drop *Godrop) Connect(instance string) (*Session, error) {
 
 	if drop.tlsConfig != nil {
 		drop.tlsConfig.ServerName = strings.Split(service.Text[3], "=")[1] // the drop.Host property of the remote godrop
+		fmt.Println("Server Name: ", drop.tlsConfig.ServerName)
 	}
 
 	if err != nil {
@@ -273,5 +274,6 @@ func (drop *Godrop) connect(dialType, joinedHostPort string) (net.Conn, error) {
 	}
 
 	//Attempt to establish a TLS connection
+	fmt.Println("Attempting TLS Connection")
 	return tls.Dial(dialType, joinedHostPort, drop.tlsConfig)
 }
