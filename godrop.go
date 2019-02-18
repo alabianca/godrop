@@ -221,7 +221,7 @@ func (drop *Godrop) Connect(instance string) (*Session, error) {
 		ip := service.AddrIPv4[i]
 
 		conn, err := drop.connect("tcp4", net.JoinHostPort(ip.String(), port))
-
+		fmt.Println(err)
 		if err == nil {
 			c = conn
 			found = true
@@ -234,7 +234,7 @@ func (drop *Godrop) Connect(instance string) (*Session, error) {
 		for i := 0; i < len(service.AddrIPv6); i++ {
 			ip := service.AddrIPv6[i]
 			conn, err := drop.connect("tcp6", net.JoinHostPort(ip.String(), port))
-
+			fmt.Println(err)
 			if err == nil {
 				c = conn
 				found = true
