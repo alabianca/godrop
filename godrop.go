@@ -14,6 +14,11 @@ import (
 	"github.com/grandcat/zeroconf"
 )
 
+type networkIPPair struct {
+	network string
+	ipPort  string
+}
+
 type Godrop struct {
 	tcpServer        *Server
 	Port             int
@@ -213,38 +218,31 @@ func (drop *Godrop) Connect(instance string) (*Session, error) {
 		return nil, err
 	}
 	port := strconv.Itoa(service.Port)
-	var found bool
-	var c net.Conn
-	// try all ip addresses to connect to the service
-	// start with ipv4 addresses
-	for i := 0; i < len(service.AddrIPv4); i++ {
-		ip := service.AddrIPv4[i]
+	addresses := make([]networkIPPair, len(service.AddrIPv4)+len(service.AddrIPv6))
 
-		conn, err := drop.connect("tcp4", net.JoinHostPort(ip.String(), port))
-		fmt.Println(err)
+	for i := 0; i < len(service.AddrIPv4); i++ {
+		addresses[i] = networkIPPair{
+			network: "tcp4",
+			ipPort:  net.JoinHostPort(service.AddrIPv4[i].String(), port),
+		}
+	}
+	var x = 0
+	for i := len(addresses); i < len(service.AddrIPv6); i++ {
+		addresses[i] = networkIPPair{
+			network: "tcp6",
+			ipPort:  net.JoinHostPort(service.AddrIPv6[x].String(), port),
+		}
+		x++
+	}
+
+	// try all ip addresses and use the first successful one
+	var c net.Conn
+	for _, addr := range addresses {
+		c, err = drop.connect(addr.network, addr.ipPort)
+
 		if err == nil {
-			c = conn
-			found = true
 			break
 		}
-	}
-
-	// if we still have not connected. try all ipv6 addresses
-	if !found {
-		for i := 0; i < len(service.AddrIPv6); i++ {
-			ip := service.AddrIPv6[i]
-			conn, err := drop.connect("tcp6", net.JoinHostPort(ip.String(), port))
-			fmt.Println(err)
-			if err == nil {
-				c = conn
-				found = true
-				break
-			}
-		}
-	}
-
-	if !found {
-		return nil, fmt.Errorf("Could Not Connect to the service")
 	}
 
 	var encryptionStatus = false
