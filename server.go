@@ -82,10 +82,6 @@ func (s *Server) accept(l net.Listener) (*Session, error) {
 }
 
 func (s *Server) handleConnection(session *Session) {
-	// if err := transferDir(session, s.sharePath); err != nil {
-	// 	fmt.Println(err)
-	// }
-
 	buf := make([]byte, AUTH_PACKET_LENGTH)
 
 	for {
@@ -96,7 +92,6 @@ func (s *Server) handleConnection(session *Session) {
 		}
 
 		msgType := buf[0]
-		fmt.Println("got message: ", msgType)
 		switch msgType {
 		case AUTH_PACKET:
 			//send header
