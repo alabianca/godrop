@@ -205,7 +205,7 @@ func (drop *Godrop) Connect(instance string) (*Session, error) {
 	service, err := drop.Lookup(instance)
 
 	if drop.tlsConfig != nil {
-		drop.tlsConfig.ServerName = strings.Split(service.Text[2], "=")[1] + "." + strings.Split(service.Text[3], "=")[1] // the drop.Host property of the remote godrop
+		drop.tlsConfig.ServerName = strings.Split(service.Text[3], "=")[1] // the drop.Host property of the remote godrop
 		fmt.Println("Server Name: ", drop.tlsConfig.ServerName)
 	}
 
@@ -251,7 +251,7 @@ func (drop *Godrop) Connect(instance string) (*Session, error) {
 	if drop.tlsConfig != nil {
 		encryptionStatus = true
 	}
-
+	fmt.Println("Setting up session")
 	sesh, err := NewSession(c, true, encryptionStatus)
 	sesh.RemoteHost = service.HostName
 	sesh.RemoteService = service.ServiceInstanceName()
