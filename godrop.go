@@ -236,12 +236,19 @@ func (drop *Godrop) Connect(instance string) (*Session, error) {
 
 	// try all ip addresses and use the first successful one
 	var c net.Conn
+	var success bool = false
 	for _, addr := range addresses {
 		c, err = drop.connect(addr.network, addr.ipPort)
 
 		if err == nil {
+			success = true
 			break
 		}
+	}
+
+	// could not connect
+	if !success {
+		return nil, fmt.Errorf("Could Not Connect to %s", service.ServiceInstanceName())
 	}
 
 	var encryptionStatus = false
