@@ -2,6 +2,7 @@ package godrop
 
 import (
 	"crypto/tls"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"net"
@@ -105,6 +106,10 @@ func (s *Server) handleConnection(session *Session) {
 
 		case KEY_PACKET:
 			fmt.Println("Received a key packed")
+			fmt.Println(buf)
+			pemLength := binary.BigEndian.Uint16(buf[1:])
+			buf = make([]byte, pemLength)
+			io.ReadFull(session.reader, buf)
 			fmt.Println(buf)
 
 		case CLONE_PACKET:
