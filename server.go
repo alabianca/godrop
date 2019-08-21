@@ -105,6 +105,7 @@ func (s *Server) handleConnection(session *Session) {
 
 		case KEY_PACKET:
 			fmt.Println("Received a key packed")
+			fmt.Println(buf)
 
 		case CLONE_PACKET:
 			// check if the session if authenticated

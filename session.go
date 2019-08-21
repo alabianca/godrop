@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/binary"
 	"encoding/pem"
 	"fmt"
 	"io"
@@ -18,7 +19,7 @@ const (
 	CLONE_PACKET         = 61
 	CLONE_PACKET_ACK     = 62
 	CLONE_PACKET_NAK     = 63
-	AUTH_PACKET_LENGTH   = 65
+	AUTH_PACKET_LENGTH   = 3
 	CLONE_ACKNACK_LENGTH = 65
 	KEY_PACKET           = 66
 	BUF_SIZE             = 1024
@@ -107,8 +108,14 @@ func (s *Session) AuthenticateWithKey(key *rsa.PublicKey) (Header, error) {
 		Bytes: x509.MarshalPKCS1PublicKey(key),
 	}
 
+	pemBytes := pem.EncodeToMemory(pemBlock)
+	b := make([]byte, 2)
+	binary.BigEndian.PutUint16(b, uint16(len(pemBytes)))
+
 	s.writer.Write(authType)
-	fmt.Println(pemBlock.Bytes)
+	s.writer.Write(b)
+	s.writer.Write(pemBytes)
+	s.writer.Flush()
 
 	return Header{}, fmt.Errorf("Not Implemented")
 }
