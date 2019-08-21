@@ -3,6 +3,9 @@ package godrop
 import (
 	"bufio"
 	"compress/gzip"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"net"
@@ -17,6 +20,7 @@ const (
 	CLONE_PACKET_NAK     = 63
 	AUTH_PACKET_LENGTH   = 65
 	CLONE_ACKNACK_LENGTH = 65
+	KEY_PACKET           = 66
 	BUF_SIZE             = 1024
 	PADDING              = "/"
 )
@@ -94,6 +98,19 @@ func (s *Session) Authenticate() (Header, error) {
 	}
 
 	return header, nil
+}
+
+func (s *Session) AuthenticateWithKey(key *rsa.PublicKey) (Header, error) {
+	authType := []byte{KEY_PACKET}
+	pemBlock := &pem.Block{
+		Type:  "RSA PUBLIC KEY",
+		Bytes: x509.MarshalPKCS1PublicKey(key),
+	}
+
+	s.writer.Write(authType)
+	fmt.Println(pemBlock.Bytes)
+
+	return Header{}, fmt.Errorf("Not Implemented")
 }
 
 // SendHeader sends a header packet to the remote peer

@@ -103,6 +103,9 @@ func (s *Server) handleConnection(session *Session) {
 			session.isAuthenticated = true
 			session.SendHeader(s.sharePath, size)
 
+		case KEY_PACKET:
+			fmt.Println("Received a key packed")
+
 		case CLONE_PACKET:
 			// check if the session if authenticated
 			if !session.isAuthenticated {
